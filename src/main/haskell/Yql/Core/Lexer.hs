@@ -38,13 +38,16 @@ module Yql.Core.Lexer
 import Text.ParserCombinators.Parsec
 import Data.Char
 
-data TokenT = TkKey String
-            | TkStr String
-            | TkNum String
-            | TkSym String
+-- | Tokens emitted by the lexer.
+data TokenT = TkKey String -- ^ Keywords (e.g.: SELECT, DESC, OR, *)
+            | TkStr String -- ^ Quoted String (e.g.: 'foobar', "foobar")
+            | TkNum String -- ^ Numeric (e.g.: 1, 1.2, .09999)
+            | TkSym String -- ^ Any Symbol (e.g.: tables, colum names, etc.)
             | TkEOF
             deriving (Show,Eq)
 
+-- | Relates a TokenT with the position in the stream, so that it can
+-- feed the parser.
 newtype Token = Token { unToken :: (SourcePos,TokenT) }
               deriving (Show,Eq)
 
@@ -56,7 +59,9 @@ scan = do skipMany space
           skipMany space
           fmap (t:) (scan <|> (eof >> fmap (:[]) (mkToken TkEOF)))
   where readToken = quoted <|> symbol
-        
+
+-- | Parses a token created by the lexer so that you can use to
+-- perform syntatic analysis.
 accept :: (TokenT -> Maybe a) -> GenParser Token () a
 accept p = token (show.snd.unToken) (fst.unToken) (p.snd.unToken)
 
@@ -97,10 +102,9 @@ mksym sym | uSym `elem` keyword = TkKey uSym
                             , "SET"
                             , "VALUES"
                             , "INTO"
+                            , "*"
                             ]
 
-                  tkNum ('.':xs) | null xs   = False
-                                 | otherwise = all isDigit xs
-                  tkNum (x:xs)               = isDigit x && tkNum xs
-                  tkNum []                   = True
-                    
+                  tkNum (x:xs) | x=='.'    = not (null xs) && all isDigit xs
+                               | otherwise = isDigit x && tkNum xs
+                  tkNum []                 = True

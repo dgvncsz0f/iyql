@@ -29,6 +29,9 @@ module Main where
 
 import Test.Framework
 import qualified Test.Yql.Core.Lexer
+import qualified Test.Yql.Core.Parser
 
 main :: IO ()
-main = defaultMain $ Test.Yql.Core.Lexer.suite
+main = defaultMain $ concat [ Test.Yql.Core.Lexer.suite
+                            , Test.Yql.Core.Parser.suite
+                            ]

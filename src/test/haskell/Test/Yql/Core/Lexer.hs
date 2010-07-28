@@ -61,6 +61,7 @@ testScanKeywords = [ ("select keyword", H.assertEqual "" [TkKey "SELECT",TkEOF] 
                    , (") keyword", H.assertEqual "" [TkKey ")",TkEOF] (runScanToken ")"))
                    , ("( keyword", H.assertEqual "" [TkKey "(",TkEOF] (runScanToken "("))
                    , ("= keyword", H.assertEqual "" [TkKey "=",TkEOF] (runScanToken "="))
+                   , ("* keyword", H.assertEqual "" [TkKey "*",TkEOF] (runScanToken "*"))
                    ]
 
 testScanQuotedStrings = [ ("single-quote string", H.assertEqual "" [TkStr "foobar",TkEOF] (runScanToken "'foobar'"))
@@ -80,20 +81,20 @@ testNumeric = [ ("integer is numeric", H.assertEqual "" [TkNum "7",TkEOF] (runSc
               ]
 
 testSymbols = [ ("foobar is a symbol", H.assertEqual "" [TkSym "foobar",TkEOF] (runScanToken "foobar"))
-              , ("* is a symbol", H.assertEqual "" [TkSym "*",TkEOF] (runScanToken "*"))
               ]
 
-testStatements = [ ("select", H.assertEqual "" [TkKey "SELECT",TkSym "*",TkKey "FROM",TkSym "foobar",TkKey "WHERE",TkSym "id",TkKey "=",TkKey "ME",TkKey ";",TkEOF] (runScanToken "select * from foobar where id=me;"))
+testStatements = [ ("select", H.assertEqual "" [TkKey "SELECT",TkKey "*",TkKey "FROM",TkSym "foobar",TkKey "WHERE",TkSym "id",TkKey "=",TkKey "ME",TkKey ";",TkEOF] (runScanToken "select * from foobar where id=me;"))
+                 , ("select", H.assertEqual "" [TkKey "SELECT",TkSym "foo",TkKey ",",TkSym "bar",TkKey "FROM",TkSym "foobar",TkKey "WHERE",TkSym "id",TkKey "=",TkKey "ME",TkKey ";",TkEOF] (runScanToken "select foo,bar from foobar where id=me;"))
                  , ("update", H.assertEqual "" [TkKey "UPDATE",TkSym "foobar",TkKey "SET",TkSym "name",TkKey "=",TkStr "foobaz",TkKey "WHERE",TkSym "id",TkKey "=",TkKey "ME",TkKey ";",TkEOF] (runScanToken "update foobar set name=\"foobaz\" where id=me;"))
                  , ("delete", H.assertEqual "" [TkKey "DELETE",TkKey "FROM",TkSym "foobar",TkKey "WHERE",TkSym "id",TkKey "=",TkKey "ME",TkKey ";",TkEOF] (runScanToken "delete from foobar where id=me;"))
                  , ("insert", H.assertEqual "" [TkKey "INSERT",TkKey "INTO",TkSym "foobar",TkKey "(",TkSym "name",TkKey ",",TkSym "id",TkKey ")",TkKey "VALUES",TkKey "(",TkStr "foobar",TkKey ",",TkKey "ME",TkKey ")",TkKey ";",TkEOF] (runScanToken "insert into foobar (name,id) values (\"foobar\",me);"))
                  , ("desc", H.assertEqual "" [TkKey "DESC",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "desc foobar;"))
                  ]
 
-testSpaces = [ ("ingores newlines", H.assertEqual "" [TkKey "SELECT",TkSym "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "\nselect\n*\nfrom\nfoobar;\n"))
-             , ("ignores spaces", H.assertEqual "" [TkKey "SELECT",TkSym "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "   select   *   from   foobar;  "))
-             , ("ignores tabs", H.assertEqual "" [TkKey "SELECT",TkSym "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "\tselect\t\t*\t\tfrom\t\tfoobar;\t"))
-             , ("ignores nbsp", H.assertEqual "" [TkKey "SELECT",TkSym "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken " select    *    from    foobar;   "))
+testSpaces = [ ("ingores newlines", H.assertEqual "" [TkKey "SELECT",TkKey "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "\nselect\n*\nfrom\nfoobar;\n"))
+             , ("ignores spaces", H.assertEqual "" [TkKey "SELECT",TkKey "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "   select   *   from   foobar;  "))
+             , ("ignores tabs", H.assertEqual "" [TkKey "SELECT",TkKey "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken "\tselect\t\t*\t\tfrom\t\tfoobar;\t"))
+             , ("ignores nbsp", H.assertEqual "" [TkKey "SELECT",TkKey "*",TkKey "FROM",TkSym "foobar",TkKey ";",TkEOF] (runScanToken " select    *    from    foobar;   "))
              ]
 
 suite :: [Test]
