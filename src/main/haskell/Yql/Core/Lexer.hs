@@ -1,0 +1,106 @@
+{-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
+-- Copyright (c) 2009, Diego Souza
+-- All rights reserved.
+-- 
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions are met:
+-- 
+--   * Redistributions of source code must retain the above copyright notice,
+--     this list of conditions and the following disclaimer.
+--   * Redistributions in binary form must reproduce the above copyright notice,
+--     this list of conditions and the following disclaimer in the documentation
+--     and/or other materials provided with the distribution.
+--   * Neither the name of the <ORGANIZATION> nor the names of its contributors
+--     may be used to endorse or promote products derived from this software
+--     without specific prior written permission.
+-- 
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+-- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+-- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+-- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+-- CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+-- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-- | Lexical analysis of yql statements
+module Yql.Core.Lexer
+       ( -- * Types
+         TokenT(..)
+       , Token(..)
+         -- * Lexical Analysis
+       , scan 
+       , accept
+       ) where
+
+import Text.ParserCombinators.Parsec
+import Data.Char
+
+data TokenT = TkKey String
+            | TkStr String
+            | TkNum String
+            | TkSym String
+            | TkEOF
+            deriving (Show,Eq)
+
+newtype Token = Token { unToken :: (SourcePos,TokenT) }
+              deriving (Show,Eq)
+
+-- | Performs the lexical analysis of a string and returns the tokens
+-- found.
+scan :: GenParser Char String [Token]
+scan = do skipMany space
+          t <- readToken
+          skipMany space
+          fmap (t:) (scan <|> (eof >> fmap (:[]) (mkToken TkEOF)))
+  where readToken = quoted <|> symbol
+        
+accept :: (TokenT -> Maybe a) -> GenParser Token () a
+accept p = token (show.snd.unToken) (fst.unToken) (p.snd.unToken)
+
+mkToken :: TokenT -> GenParser Char String Token
+mkToken t = do p <- getPosition
+               return (Token (p,t))
+
+symbol :: GenParser Char String Token
+symbol = (fmap (TkKey.(:[])) (oneOf single) >>= mkToken)
+         <|> (fmap mksym (many1 (satisfy sym)) >>= mkToken)
+  where single = ",;()="
+
+        sym c = (c `notElem` single) && not (isSpace c)
+
+quoted :: GenParser Char String Token
+quoted = do sep     <- oneOf "'\""
+            content <- many (noneOf [sep])
+            (char sep <?> "lexer: `"++ [sep] ++"' was expected")
+            mkToken (TkStr content)
+
+mksym :: String -> TokenT
+mksym sym | uSym `elem` keyword = TkKey uSym
+          | tkNum sym           = TkNum sym
+          | otherwise           = TkSym sym
+            where uSym = map toUpper sym
+                  
+                  keyword = [ "SELECT"
+                            , "UPDATE"
+                            , "INSERT"
+                            , "DELETE"
+                            , "DESC"
+                            , "OR"
+                            , "AND"
+                            , "IN"
+                            , "ME"
+                            , "FROM"
+                            , "WHERE"
+                            , "SET"
+                            , "VALUES"
+                            , "INTO"
+                            ]
+
+                  tkNum ('.':xs) | null xs   = False
+                                 | otherwise = all isDigit xs
+                  tkNum (x:xs)               = isDigit x && tkNum xs
+                  tkNum []                   = True
+                    
