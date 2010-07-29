@@ -1,4 +1,4 @@
--- Copyright (c) 2009, Diego Souza
+-- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
 -- Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ newtype LexerToken = LexerToken (String,TokenT)
 
 stringBuilder = ParserEvents { onTable      = id
                              , onColumn     = id
-                             , onStrValue   = mkValue
+                             , onTxtValue   = mkValue
                              , onNumValue   = id
                              , onMeValue    = "me"
                              , onSelect     = mkSelect

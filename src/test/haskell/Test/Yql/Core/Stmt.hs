@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
@@ -25,15 +24,16 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+-- | Test Engine module
+module Test.Yql.Core.Stmt where
 
 import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Stmt as C
+import Test.Framework.Providers.HUnit
+import qualified Test.HUnit as H
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            ]
+import Yql.Core.Stmt
+
+suite :: [Test]
+suite = [
+        ]
+  where mk = map (\t -> testCase (fst t) (snd t))

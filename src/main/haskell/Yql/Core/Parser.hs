@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
--- Copyright (c) 2009, Diego Souza
+-- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
 -- Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ type YqlParser a = GenParser Token () a
 -- you constructing types that represents yql statements.
 data ParserEvents c t v w s = ParserEvents { onTable    :: String -> t
                                            , onColumn   :: String -> c
-                                           , onStrValue :: String -> v
+                                           , onTxtValue :: String -> v
                                            , onNumValue :: String -> v
                                            , onMeValue  :: v
                                            , onSelect   :: [c] -> t -> Maybe w -> s
@@ -124,7 +124,7 @@ parseTable :: ParserEvents c t v w s -> YqlParser t
 parseTable e = fmap (onTable e) symbol_
 
 parseValue :: ParserEvents c t v w s -> YqlParser v
-parseValue e = fmap (onStrValue e) quoted 
+parseValue e = fmap (onTxtValue e) quoted 
                <|> fmap (onNumValue e) numeric
                <|> fmap (const $ onMeValue e) (keyword (=="ME"))
 

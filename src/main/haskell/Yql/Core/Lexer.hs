@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
--- Copyright (c) 2009, Diego Souza
+-- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
 -- Redistribution and use in source and binary forms, with or without
