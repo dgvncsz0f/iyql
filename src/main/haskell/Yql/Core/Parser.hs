@@ -108,7 +108,7 @@ parseSelect e = do keyword (=="SELECT")
                    table  <- parseTable e
                    future <- lookAhead anyTokenT
                    case future
-                     of TkKey "WHERE" -> do keyword (=="WHERE")
+                     of TkKey "WHERE" -> do anyTokenT
                                             w <- parseWhere e
                                             keyword (==";")
                                             tkEof

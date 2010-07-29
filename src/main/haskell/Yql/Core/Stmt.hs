@@ -32,26 +32,34 @@ module Yql.Core.Stmt
        , Value(..)
        , Where(..)
        , Statement(..)
+         -- * Query
+       , select
        ) where
 
 import Yql.Core.Parser
 import Data.List
 import Data.Maybe
 
+-- | The table in yql statements.
 data Table = Table String
 
+-- | Column that may appear in the statements (e.g. SELECT, UPDATE,
+-- etc.) and also in WHERE clauses.
 data Column = Column String
             | All
 
+-- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
            | NumValue String
            | MeValue
 
+-- | Where clause to filter/limit data in yql statements.
 data Where = Column `OpEq` Value
            | Column `OpIn` [Value]
            | Where `OpAnd` Where
            | Where `OpOr` Where
 
+-- | The different statements supported.
 data Statement = SELECT [Column] Table (Maybe Where)
 
 -- | Listen to parser events to build Statement type.
@@ -73,6 +81,10 @@ stmtBuilder = ParserEvents { onTable    = Table
                            }
   where mkColumn "*" = All
         mkColumn x   = Column x
+
+-- | Test if the statement is a select statement
+select :: Statement -> Bool
+select (SELECT _ _ _) = True
 
 instance Read Statement where
   readsPrec _ input = case (parseYql input stmtBuilder)
