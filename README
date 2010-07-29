@@ -1,0 +1,39 @@
+iYql - Interactive Yql
+======================
+The purpose of this project is to implement a cli interface for
+yql. The goal is to implement something similar to databases like
+sqlite3 or mysql interfaces.
+
+1. Input
+========
+There are two major modes of operation. The first one is the
+interactive one, which is started by default. Using libreadline, it
+reads one command at time, each command ending by ; (mandatory). This
+statement is parsed in order to determine which type of authentication
+is required -- either none, two legged or three legged. After the
+proper oauth token is acquired, the query is sent to yql and the
+result is shown to the user.
+
+The other mode is the batch mode, which queries are read either from
+stdin or from an argument. This is most useful for piping data into
+the program or using iyql to feed other programs in the unix pipeline.
+
+2. Output
+=========
+The idea is also parse the output and print it in a structured format,
+similar to what database interfaces do. However, the first release is
+planned to display the output as-is, and parsing and changing the
+output is scheduled for a second release.
+
+3. Local and Remote
+===================
+There will be local commands, that are useful to inspect the state of
+the program. Local commands will always be prefixed by the
+. character. For instance .whoami shows information about the oauth
+token in use. These commands are processed locally and never sent to
+yql. Everything not starting by `.' is considered to be a valid yql
+statement, parsed and sent to yql engine.
+
+4. Examples
+===========
+TODO:fixme
