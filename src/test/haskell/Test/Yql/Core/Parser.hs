@@ -50,16 +50,22 @@ stringBuilder = ParserEvents { onTable      = id
                              , onDelete     = undefined
                              , onDesc       = undefined
                              , onEqExpr     = mkEqExpr
-                             , onInExpr     = undefined
-                             , onAndExpr    = undefined
-                             , onOrExpr     = undefined
+                             , onInExpr     = mkInExpr
+                             , onAndExpr    = mkAndExpr
+                             , onOrExpr     = mkOrExpr
                              }
   where mkValue v = "\"" ++ v ++ "\""
         
         mkSelect c t Nothing  = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ ";"
         mkSelect c t (Just w) = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ ";"
-        
+
         mkEqExpr c v = c ++"="++ v
+
+        mkInExpr c vs = c ++ " IN ("++ intercalate "," vs ++")"
+
+        mkAndExpr l r = l ++" AND "++ r
+
+        mkOrExpr l r = l ++" OR "++ r
 
 runYqlParser :: String -> String
 runYqlParser input = case (parseYql input stringBuilder)
@@ -70,6 +76,8 @@ testParsingSelects = [ ("select * without where", H.assertEqual "" "SELECT * FRO
                      , ("select foo,bar tables without where", H.assertEqual "" "SELECT foo,bar FROM iyql;" (runYqlParser "select foo,bar from iyql;"))
                      , ("select * with single where clause (text)", H.assertEqual "" "SELECT * FROM iyql WHERE foo=\"bar\";" (runYqlParser "select * from iyql where foo=\"bar\";"))
                      , ("select * with single where clause (num)", H.assertEqual "" "SELECT * FROM iyql WHERE foo=3.141592653589793;" (runYqlParser "select * from iyql where foo=3.141592653589793;"))
+                     , ("select * with multiple and/or expr", H.assertEqual "" "SELECT * FROM iyql WHERE foo=\"bar\" AND bar=\"foo\" OR id=me;" (runYqlParser "select * from iyql where foo=\"bar\" and bar=\"foo\" or id=me;"))
+                     , ("select * with `in' where clause", H.assertEqual "" "SELECT * FROM iyql WHERE foo IN (\"b\",\"a\",\"r\",3,\".\",1);" (runYqlParser "select * from iyql where foo in (\"b\",\"a\",\"r\",3,\".\",1);"))
                      ]
 
 suite :: [Test]

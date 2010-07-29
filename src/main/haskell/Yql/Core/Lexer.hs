@@ -61,7 +61,7 @@ scan = do skipMany space
   where readToken = quoted <|> symbol
 
 -- | Parses a token created by the lexer so that you can use to
--- perform syntatic analysis.
+-- perform syntactic analysis.
 accept :: (TokenT -> Maybe a) -> GenParser Token () a
 accept p = token (show.snd.unToken) (fst.unToken) (p.snd.unToken)
 

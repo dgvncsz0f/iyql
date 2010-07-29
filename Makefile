@@ -32,8 +32,7 @@ clean:
 	$(RM) $(addsuffix .o,$(basename $(TESTPRG_SRC)))
 	$(RM) $(addsuffix .hi,$(basename $(TESTPRG_SRC)))
 
-$(TESTOBJ): $(TESTSRC) $(MAINOBJ)
-$(TESTPRG): $(TESTOBJ)
+$(TESTPRG): $(TESTPRG_SRC) $(MAINSRC) $(TESTSRC)
 	$(HC) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(TESTPRG_SRC)
 
 .SUFFIXES: .o .hs

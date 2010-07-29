@@ -1,3 +1,4 @@
 *~
 *.o
 *.hi
+src/test/haskell/Main

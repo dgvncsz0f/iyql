@@ -25,7 +25,7 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
--- | Syntatical analysis of Yql statements
+-- | Syntactic analysis of Yql statements
 module Yql.Core.Parser
        ( -- * Types
          ParserEvents(..)
@@ -68,26 +68,26 @@ parseYql input e = case tokStream
         tokStream = runParser scan "" "stdin" input
 
 quoted :: YqlParser String
-quoted = accept $ \t -> case t
-                        of TkStr s -> Just s
-                           _       -> Nothing
+quoted = accept test
+  where test (TkStr s) = Just s
+        test _         = Nothing
 
 numeric :: YqlParser String
-numeric = accept $ \t -> case t
-                         of TkNum s -> Just s
-                            _       -> Nothing
+numeric = accept test
+  where test (TkNum n) = Just n
+        test _         = Nothing
 
 keyword :: (String -> Bool) -> YqlParser String
-keyword p = accept $ \t -> case t
-                           of TkKey k | p k       -> Just k
-                                      | otherwise -> Nothing
-                              _                   -> Nothing
+keyword p = accept test
+  where test (TkKey k) | p k       = Just k
+                       | otherwise = Nothing
+        test _                     = Nothing
 
 symbol :: (String -> Bool) -> YqlParser String
-symbol p = accept $ \t -> case t
-                          of TkSym s | p s       -> Just s
-                                     | otherwise -> Nothing
-                             _                   -> Nothing
+symbol p = accept test
+  where test (TkSym s) | p s       = Just s
+                       | otherwise = Nothing
+        test _                     = Nothing
 
 symbol_ :: YqlParser String
 symbol_ = symbol (const True)
@@ -103,7 +103,7 @@ tkEof = accept $ \t -> case t
 parseSelect :: ParserEvents c t v w s -> YqlParser s
 parseSelect e = do keyword (=="SELECT")
                    columns <- (fmap (const [onColumn e "*"]) (keyword (=="*"))
-                               <|> parseColumn e `sepBy` (keyword (==",")))
+                               <|> parseColumn e `sepBy` keyword (==","))
                    keyword (=="FROM")
                    table  <- parseTable e
                    future <- lookAhead anyTokenT
@@ -116,11 +116,6 @@ parseSelect e = do keyword (=="SELECT")
                         _             -> do keyword (==";")
                                             tkEof
                                             return (onSelect e columns table Nothing)
-
--- parseUpdate :: ParserEvents c t v w s -> YqlParser s
--- parseUpdate e = do keyword "UPDATE"
---                    table <- parseTable e
---                    keyword "SET"
 
 parseColumn :: ParserEvents c t v w s -> YqlParser c
 parseColumn e = fmap (onColumn e) symbol_
@@ -137,11 +132,16 @@ parseWhere :: ParserEvents c t v w s -> YqlParser w
 parseWhere e = do column <- parseColumn e
                   op     <- keyword (`elem` ["=","IN"])
                   w      <- parseValueBy column op
-                  tk     <- lookAhead anyTokenT
-                  case tk
-                    of TkKey "AND" -> fmap (onAndExpr e w) (parseWhere e)
-                       TkKey "OR"  -> fmap (onOrExpr e w) (parseWhere e)
+                  future <- lookAhead anyTokenT
+                  case future
+                    of TkKey "AND" -> do anyTokenT
+                                         fmap (onAndExpr e w) (parseWhere e)
+                       TkKey "OR"  -> do anyTokenT
+                                         fmap (onOrExpr e w) (parseWhere e)
                        _           -> return w
   where parseValueBy column "="  = fmap (onEqExpr e column) (parseValue e)
-        parseValueBy column "IN" = fmap (onInExpr e column) (parseValue e `sepBy` keyword (==","))
+        parseValueBy column "IN" = do keyword (=="(")
+                                      ret <- fmap (onInExpr e column) (parseValue e `sepBy` keyword (==","))
+                                      keyword (==")")
+                                      return ret
         parseValueBy _ _         = fail "expecting one of [=,IN]"
