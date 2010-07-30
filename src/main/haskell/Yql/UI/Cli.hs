@@ -43,6 +43,9 @@ eol (x:xs) | x==';'    = all isSpace xs
            | otherwise = eol xs
 eol []                 = False
 
+empty :: String -> Bool
+empty = all isSpace
+
 outputVersion :: InputT IO ()
 outputVersion = outputStrLn $ "iyql version " ++ version
 
@@ -65,14 +68,13 @@ loop y = do minput <- getInputLine "iyql> "
             case minput
               of Nothing      -> return ()
                  Just ":quit" -> return ()
-                 Just input | eol input  -> do execYql input
-                                               loop y
-                            | otherwise  -> do (cont input >>= execYql)
-                                               loop y
+                 Just input | empty input -> loop y
+                            | eol input   -> do execYql input
+                                                loop y
+                            | otherwise   -> do (cont input >>= execYql)
+                                                loop y
 
-  where empty = all (==' ')
-        
-        execYql input = case (parseYql input builder)
+  where execYql input = case (parseYql input builder)
                         of Left err 
                              | empty input -> loop y
                              | otherwise   -> do outputStrLn (show err)
