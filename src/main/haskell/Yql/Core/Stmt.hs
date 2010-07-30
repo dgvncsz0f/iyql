@@ -34,6 +34,8 @@ module Yql.Core.Stmt
        , Statement(..)
          -- * Query
        , select
+         -- * Parsing
+       , builder 
        ) where
 
 import Yql.Core.Parser
@@ -63,22 +65,22 @@ data Where = Column `OpEq` Value
 data Statement = SELECT [Column] Table (Maybe Where)
 
 -- | Listen to parser events to build Statement type.
-stmtBuilder :: ParserEvents Column Table Value Where Statement
-stmtBuilder = ParserEvents { onTable    = Table
-                           , onColumn   = mkColumn
-                           , onTxtValue = TxtValue
-                           , onNumValue = NumValue
-                           , onMeValue  = MeValue
-                           , onSelect   = SELECT
-                           , onUpdate   = undefined
-                           , onDelete   = undefined
-                           , onInsert   = undefined
-                           , onDesc     = undefined
-                           , onEqExpr   = OpEq
-                           , onInExpr   = OpIn
-                           , onAndExpr  = OpAnd
-                           , onOrExpr   = OpOr
-                           }
+builder :: ParserEvents Column Table Value Where Statement
+builder = ParserEvents { onTable    = Table
+                       , onColumn   = mkColumn
+                       , onTxtValue = TxtValue
+                       , onNumValue = NumValue
+                       , onMeValue  = MeValue
+                       , onSelect   = SELECT
+                       , onUpdate   = undefined
+                       , onDelete   = undefined
+                       , onInsert   = undefined
+                       , onDesc     = undefined
+                       , onEqExpr   = OpEq
+                       , onInExpr   = OpIn
+                       , onAndExpr  = OpAnd
+                       , onOrExpr   = OpOr
+                       }
   where mkColumn "*" = All
         mkColumn x   = Column x
 
@@ -87,7 +89,7 @@ select :: Statement -> Bool
 select (SELECT _ _ _) = True
 
 instance Read Statement where
-  readsPrec _ input = case (parseYql input stmtBuilder)
+  readsPrec _ input = case (parseYql input builder)
                       of Left  _    -> []
                          Right stmt -> [(stmt,"")]
 
