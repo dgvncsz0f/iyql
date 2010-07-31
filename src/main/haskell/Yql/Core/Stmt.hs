@@ -44,25 +44,30 @@ import Data.Maybe
 
 -- | The table in yql statements.
 data Table = Table String
+           deriving (Eq)
 
 -- | Column that may appear in the statements (e.g. SELECT, UPDATE,
 -- etc.) and also in WHERE clauses.
 data Column = Column String
             | All
+            deriving (Eq)
 
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
            | NumValue String
            | MeValue
+           deriving (Eq)
 
 -- | Where clause to filter/limit data in yql statements.
 data Where = Column `OpEq` Value
            | Column `OpIn` [Value]
            | Where `OpAnd` Where
            | Where `OpOr` Where
+           deriving (Eq)
 
 -- | The different statements supported.
 data Statement = SELECT [Column] Table (Maybe Where)
+               deriving (Eq)
 
 -- | Listen to parser events to build Statement type.
 builder :: ParserEvents Column Table Value Where Statement
@@ -110,7 +115,7 @@ instance Show Column where
 
 instance Show Where where
   showsPrec _ (c `OpEq` v)  = showString $ show c ++"="++ show v
-  showsPrec _ (c `OpIn` vs) = showString $ show c ++"= ("++ intercalate "," (map show vs) ++")"
+  showsPrec _ (c `OpIn` vs) = showString $ show c ++" IN ("++ intercalate "," (map show vs) ++")"
   showsPrec _ (l `OpAnd` r) = showString $ show l ++" AND "++ show r
   showsPrec _ (l `OpOr` r)  = showString $ show l ++" OR "++ show r
 

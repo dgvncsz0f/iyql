@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
+{-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
@@ -25,17 +25,36 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+module Test.Yql.Core.Backend where
 
+#define eq assertEqual (__FILE__ ++":"++ show __LINE__)
+#define ok assertBool (__FILE__ ++":"++ show __LINE__)
+
+import Yql.Core.Backend
+import Network.OAuth.Consumer
+import Network.OAuth.Http.Response
+import Network.OAuth.Http.HttpClient
 import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Stmt as C
-import qualified Test.Yql.Core.Backend as D
+import Test.Framework.Providers.HUnit
+import Test.HUnit (assertBool, assertEqual)
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            , D.suite
-                            ]
+test0 = testCase "test endpoint returns the string defined" $
+        eq "query.yahooapis.com" (endpoint $ StdBackend "query.yahooapis.com" undefined undefined)
+
+test1 = testCase "test application returns the app defined" $ 
+        eq (Application "foo" "bar" OOB) (app $ StdBackend undefined (Application "foo" "bar" OOB) undefined)
+
+test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $ 
+        do resp <- unCurlM (execute (StdBackend "query.yahooapis.com" undefined undefined) (read "select title,abstract from search.web where query=\"iyql\";"))
+           eq 200 (status resp)
+
+suite :: [Test]
+suite = [ testGroup "Engine.hs" [ test0
+                                , test1
+                                , test2
+                                ]
+        ]
+
+instance Show Application where
+  showsPrec _ (Application ckey csec OOB)     = showString $ "Application "++ ckey ++" "++ csec ++" OOB"
+  showsPrec _ (Application ckey csec (URL u)) = showString $ "Application "++ ckey ++" "++ csec ++" "++ u
