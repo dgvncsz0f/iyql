@@ -55,6 +55,10 @@ test5 = testCase "show select with where expression with and/or" $
 test6 = testCase "read string creates correct type" $
         do eq (SELECT [Column "foo",Column "bar"] (Table "iyql") (Just $ (Column "pi" `OpEq` NumValue "3.14") `OpOr` (Column "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]))) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
 
+test7 = testCase "show select escapes strings" $
+        do eq "SELECT * FROM iyql WHERE foo=\"foo\\\"bar\";" (show $ SELECT [Column "*"] (Table "iyql") (Just $ Column "foo" `OpEq` TxtValue "foo\"bar"))
+           eq "SELECT * FROM iyql WHERE foo=\"foo'bar\";" (show $ SELECT [Column "*"] (Table "iyql") (Just $ Column "foo" `OpEq` TxtValue "foo'bar"))
+
 suite :: [Test]
 suite = [ testGroup "Stmt.hs" [ test0
                               , test1
@@ -63,5 +67,6 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test4
                               , test5
                               , test6
+                              , test7
                               ]
         ]

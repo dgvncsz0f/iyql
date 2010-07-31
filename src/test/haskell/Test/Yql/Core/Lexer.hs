@@ -92,9 +92,10 @@ test1 = testCase "quoted string tokens" $
            eq (TkStr "")                      (scanToken1 "''")
            eq (TkStr "")                      (scanToken1 "\"\"")
 
-test2 = testCase "quoted strings with escaped delimiters" $ 
+test2 = testCase "quoted strings with escaped chars" $ 
         do eq (TkStr "foo'bar")  (scanToken1 "'foo\\'bar'")
            eq (TkStr "foo\"bar") (scanToken1 "\"foo\\\"bar\"")
+           eq (TkStr "foo\\xA0bar") (scanToken1 "'foo\\xA0bar'")
 
 test3 = testCase "integer numbers are numeric tokens" $ 
         eq (TkNum "7") (scanToken1 "7")

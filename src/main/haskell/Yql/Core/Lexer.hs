@@ -80,10 +80,15 @@ symbol = (fmap TkKey (try $ string ">=")
         sym c = (c `notElem` single) && not (isSpace c)
 
 quoted :: GenParser Char String Token
-quoted = do sep     <- oneOf "'\""
-            content <- many (noneOf [sep])
-            (char sep <?> "lexer: `"++ [sep] ++"' was expected")
+quoted = do s       <- oneOf "'\""
+            content <- loop s
             mkToken (TkStr content)
+  where loop s = do c <- anyChar
+                    case c
+                      of '\\'          -> (char s >> fmap (s:) (loop s))
+                                          <|> fmap (c:) (loop s)
+                         x | s==x      -> return []
+                           | otherwise -> fmap (x:) (loop s)
 
 mksym :: String -> TokenT
 mksym sym | uSym `elem` keyword = TkKey uSym
