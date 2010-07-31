@@ -70,9 +70,12 @@ mkToken t = do p <- getPosition
                return (Token (p,t))
 
 symbol :: GenParser Char String Token
-symbol = (fmap (TkKey.(:[])) (oneOf single) >>= mkToken)
-         <|> (fmap mksym (many1 (satisfy sym)) >>= mkToken)
-  where single = ",;()="
+symbol = (fmap TkKey (try $ string ">=")
+         <|> fmap TkKey (try $ string "<=")
+         <|> fmap TkKey (try $ string "!=")
+         <|> fmap (TkKey.(:[])) (oneOf single)
+         <|> fmap mksym (many1 (satisfy sym))) >>= mkToken
+  where single = ",;()=><|"
 
         sym c = (c `notElem` single) && not (isSpace c)
 
@@ -102,6 +105,11 @@ mksym sym | uSym `elem` keyword = TkKey uSym
                             , "SET"
                             , "VALUES"
                             , "INTO"
+                            , "MATCHES"
+                            , "NULL"
+                            , "NOT"
+                            , "LIKE"
+                            , "IS"
                             , "*"
                             ]
 
