@@ -41,25 +41,25 @@ type YqlParser a = GenParser Token () a
 
 -- | Events the parser generates. The main purpose of this is to allow
 -- you constructing types that represents yql statements.
-data ParserEvents c t v w s = ParserEvents { onTable    :: String -> t
-                                           , onColumn   :: String -> c
-                                           , onTxtValue :: String -> v
-                                           , onNumValue :: String -> v
-                                           , onMeValue  :: v
-                                           , onSelect   :: [c] -> t -> Maybe w -> s
-                                           , onUpdate   :: [(c,v)] -> t -> Maybe w -> s
-                                           , onInsert   :: [(c,v)] -> t -> s
-                                           , onDelete   :: t -> Maybe w -> s
-                                           , onDesc     :: t -> s
-                                           , onEqExpr   :: c -> v -> w
-                                           , onInExpr   :: c -> [v] -> w
-                                           , onAndExpr  :: w -> w -> w
-                                           , onOrExpr   :: w -> w -> w
-                                           }
+data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
+                                           , onTxtValue   :: String -> v
+                                           , onNumValue   :: String -> v
+                                           , onMeValue    :: v
+                                           , onSelect     :: [i] -> i -> Maybe w -> [f] -> s
+                                           , onUpdate     :: [(i,v)] -> i -> Maybe w -> s
+                                           , onInsert     :: [(i,v)] -> i -> s
+                                           , onDelete     :: i -> Maybe w -> s
+                                           , onDesc       :: i -> s
+                                           , onEqExpr     :: i -> v -> w
+                                           , onInExpr     :: i -> [v] -> w
+                                           , onAndExpr    :: w -> w -> w
+                                           , onOrExpr     :: w -> w -> w
+                                           , onFunction   :: i -> [(i,v)] -> f
+                                         }
 
 -- | Parses an string, which must be a valid yql expression, using
 -- ParserEvents to create generic types.
-parseYql :: String -> ParserEvents c t v w s -> Either ParseError s
+parseYql :: String -> ParserEvents i v w f s -> Either ParseError s
 parseYql input e = case tokStream
                    of Left err     -> Left err
                       Right input_ -> runParser parseYql_ () "stdin" input_
@@ -92,56 +92,60 @@ symbol p = accept test
 symbol_ :: YqlParser String
 symbol_ = symbol (const True)
 
-anyTokenT :: YqlParser TokenT
-anyTokenT = accept Just
+-- anyTokenT :: YqlParser TokenT
+-- anyTokenT = accept Just
 
 tkEof :: YqlParser ()
 tkEof = accept $ \t -> case t
                        of TkEOF -> Just ()
                           _     -> Nothing
 
-parseSelect :: ParserEvents c t v w s -> YqlParser s
+parseSelect :: ParserEvents i v w f s -> YqlParser s
 parseSelect e = do keyword (=="SELECT")
-                   columns <- (fmap (const [onColumn e "*"]) (keyword (=="*"))
-                               <|> parseColumn e `sepBy` keyword (==","))
+                   c <- (fmap (const [onIdentifier e "*"]) (keyword (=="*"))
+                         <|> parseIdentifier e `sepBy` keyword (==","))
                    keyword (=="FROM")
-                   table  <- parseTable e
-                   future <- lookAhead anyTokenT
-                   case future
-                     of TkKey "WHERE" -> do anyTokenT
-                                            w <- parseWhere e
-                                            keyword (==";")
-                                            tkEof
-                                            return (onSelect e columns table (Just w))
-                        _             -> do keyword (==";")
-                                            tkEof
-                                            return (onSelect e columns table Nothing)
+                   t <- parseIdentifier e
+                   w <- whereClause 
+                        <|> return Nothing
+                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
+                        <|> return []
+                   keyword (==";")
+                   tkEof
+                   return (onSelect e c t w f)
+  where whereClause = do keyword (=="WHERE")
+                         fmap Just (parseWhere e)
 
-parseColumn :: ParserEvents c t v w s -> YqlParser c
-parseColumn e = fmap (onColumn e) symbol_
+parseIdentifier :: ParserEvents i v w f s -> YqlParser i
+parseIdentifier e = fmap (onIdentifier e) symbol_
 
-parseTable :: ParserEvents c t v w s -> YqlParser t
-parseTable e = fmap (onTable e) symbol_
-
-parseValue :: ParserEvents c t v w s -> YqlParser v
+parseValue :: ParserEvents i v w f s -> YqlParser v
 parseValue e = fmap (onTxtValue e) quoted 
                <|> fmap (onNumValue e) numeric
                <|> fmap (const $ onMeValue e) (keyword (=="ME"))
 
-parseWhere :: ParserEvents c t v w s -> YqlParser w
-parseWhere e = do column <- parseColumn e
+parseWhere :: ParserEvents i v w f s -> YqlParser w
+parseWhere e = do column <- parseIdentifier e
                   op     <- keyword (`elem` ["=","IN"])
                   w      <- parseValueBy column op
-                  future <- lookAhead anyTokenT
-                  case future
-                    of TkKey "AND" -> do anyTokenT
-                                         fmap (onAndExpr e w) (parseWhere e)
-                       TkKey "OR"  -> do anyTokenT
-                                         fmap (onOrExpr e w) (parseWhere e)
-                       _           -> return w
+                  (keyword (=="AND") >> fmap (onAndExpr e w) (parseWhere e))
+                   <|> (keyword (=="OR") >> fmap (onOrExpr e w) (parseWhere e))
+                   <|> return w
   where parseValueBy column "="  = fmap (onEqExpr e column) (parseValue e)
         parseValueBy column "IN" = do keyword (=="(")
                                       ret <- fmap (onInExpr e column) (parseValue e `sepBy` keyword (==","))
                                       keyword (==")")
                                       return ret
         parseValueBy _ _         = fail "expecting one of [=,IN]"
+
+parseFunction :: ParserEvents i v w f s -> YqlParser f
+parseFunction e = do n <- parseIdentifier e
+                     keyword (=="(")
+                     argv <- arguments `sepBy` keyword (==",")
+                     keyword (==")")
+                     return (onFunction e n argv)
+  where arguments = do k <- parseIdentifier e
+                       keyword (=="=")
+                       v <- parseValue e
+                       return (k,v)
+                     

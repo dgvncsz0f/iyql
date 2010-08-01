@@ -48,6 +48,7 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test7
                                 , test8
                                 , test9
+                                , test10
                                 ]
         ]
 
@@ -70,8 +71,8 @@ test5 = testCase "select * with `in' clause" $
         eq "SELECT * FROM iyql WHERE foo IN (\"b\",\"a\",\"r\",3,\".\",1);" (runYqlParser "select * from iyql where foo in (\"b\",\"a\",\"r\",3,\".\",1);")
 
 test6 = testCase "select * with functions" $
-        do eq "SELECT * FROM iyql | iyql(field=\"foobar\");" (runYqlParser "select * from iyql | sort(field='foobar');")
-           eq "SELECT * FROM iyql | iyql();" (runYqlParser "select * from iyql | iyql();")
+        do eq "SELECT * FROM iyql | iyql(field=\"foobar\");" (runYqlParser "select * from iyql | iyql(field='foobar');")
+           eq "SELECT * FROM iyql | iyql() | sort();" (runYqlParser "select * from iyql | iyql() | sort();")
 
 test7 = testCase "select * using local filters [like]" $
         do eq "SELECT * FROM iyql WHERE foo LIKE \"baz\";" (runYqlParser "select * from iyql where foo like \"baz\";")
@@ -89,11 +90,17 @@ test9 = testCase "select * using local filters [>,>=,=,!=,<,<=]" $
            eq "SELECT * FROM iyql WHERE foo = 7;" (runYqlParser "select * from iyql where foo = 7;")
            eq "SELECT * FROM iyql WHERE foo != 7;" (runYqlParser "select * from iyql where foo != 7;")
 
+test10 = testCase "select with where clause with different precedence" $
+         do eq "SELECT * FROM iyql WHERE (foo=2 and bar=3) or (foo=5 and bar=7);" (runYqlParser "select * from iyql where (foo=2 and bar=3) or (foo=5 and bar=7);")
+            eq "SELECT * FROM iyql WHERE (foo=2 or bar=3) and (foo=4 or bar=7);" (runYqlParser "select * from iyql where (foo=2 or bar=3) and (foo=5 or bar=7);")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
-stringBuilder = ParserEvents { onTable      = id
-                             , onColumn     = id
+showFunction [] = "";
+showFunction f  = " | " ++ intercalate " | " f;
+
+stringBuilder = ParserEvents { onIdentifier = id
                              , onTxtValue   = mkValue
                              , onNumValue   = id
                              , onMeValue    = "me"
@@ -106,11 +113,15 @@ stringBuilder = ParserEvents { onTable      = id
                              , onInExpr     = mkInExpr
                              , onAndExpr    = mkAndExpr
                              , onOrExpr     = mkOrExpr
+                             , onFunction   = mkFunc
                              }
   where mkValue v = "\"" ++ v ++ "\""
         
-        mkSelect c t Nothing  = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ ";"
-        mkSelect c t (Just w) = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ ";"
+        mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
+        mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        
+        mkFunc n as = n ++ "("++ intercalate "," (map showArg as) ++")"
+          where showArg (k,v) = k ++"="++ v
 
         mkEqExpr c v = c ++"="++ v
 

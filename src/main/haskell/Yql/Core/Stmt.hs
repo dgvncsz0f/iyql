@@ -27,13 +27,14 @@
 
 module Yql.Core.Stmt
        ( -- * Types
-         Table(..)
-       , Column(..)
-       , Value(..)
+         Value(..)
        , Where(..)
        , Statement(..)
+       , Function(..)
          -- * Query
        , select
+       , local
+       , remote
          -- * Parsing
        , builder 
        ) where
@@ -42,56 +43,64 @@ import Yql.Core.Parser
 import Data.List
 import Data.Maybe
 
--- | The table in yql statements.
-data Table = Table String
-           deriving (Eq)
-
--- | Column that may appear in the statements (e.g. SELECT, UPDATE,
--- etc.) and also in WHERE clauses.
-data Column = Column String
-            | All
-            deriving (Eq)
-
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
            | NumValue String
            | MeValue
            deriving (Eq)
 
+-- | The table in yql statements.
 -- | Where clause to filter/limit data in yql statements.
-data Where = Column `OpEq` Value
-           | Column `OpIn` [Value]
+data Where = String `OpEq` Value
+           | String `OpIn` [Value]
            | Where `OpAnd` Where
            | Where `OpOr` Where
            deriving (Eq)
 
+-- | Functions that transform output.
+data Function = Remote { name :: String
+                       , args :: [(String,Value)]
+                       }
+              | Local { name :: String
+                      , args :: [(String,Value)]
+                      }
+              deriving (Eq)
+
 -- | The different statements supported.
-data Statement = SELECT [Column] Table (Maybe Where)
+data Statement = SELECT [String] String (Maybe Where) [Function]
                deriving (Eq)
 
 -- | Listen to parser events to build Statement type.
-builder :: ParserEvents Column Table Value Where Statement
-builder = ParserEvents { onTable    = Table
-                       , onColumn   = mkColumn
-                       , onTxtValue = TxtValue
-                       , onNumValue = NumValue
-                       , onMeValue  = MeValue
-                       , onSelect   = SELECT
-                       , onUpdate   = undefined
-                       , onDelete   = undefined
-                       , onInsert   = undefined
-                       , onDesc     = undefined
-                       , onEqExpr   = OpEq
-                       , onInExpr   = OpIn
-                       , onAndExpr  = OpAnd
-                       , onOrExpr   = OpOr
+builder :: ParserEvents String Value Where Function Statement
+builder = ParserEvents { onIdentifier = id
+                       , onTxtValue   = TxtValue
+                       , onNumValue   = NumValue
+                       , onMeValue    = MeValue
+                       , onSelect     = SELECT
+                       , onUpdate     = undefined
+                       , onDelete     = undefined
+                       , onInsert     = undefined
+                       , onDesc       = undefined
+                       , onEqExpr     = OpEq
+                       , onInExpr     = OpIn
+                       , onAndExpr    = OpAnd
+                       , onOrExpr     = OpOr
+                       , onFunction   = mkFunc
                        }
-  where mkColumn "*" = All
-        mkColumn x   = Column x
+  where mkFunc ('.':f) = Local f
+        mkFunc f       = Remote f
 
 -- | Test if the statement is a select statement
 select :: Statement -> Bool
-select (SELECT _ _ _) = True
+select (SELECT _ _ _ _) = True
+
+local :: Function -> Bool
+local (Local _ _) = True
+local _           = False
+
+remote :: Function -> Bool
+remote (Remote _ _) = True
+remote _            = False
 
 instance Read Statement where
   readsPrec _ input = case (parseYql input builder)
@@ -99,23 +108,26 @@ instance Read Statement where
                          Right stmt -> [(stmt,"")]
 
 instance Show Statement where
-  showsPrec _ (SELECT cols table whre) = showString $ "SELECT " 
-                                         ++ intercalate "," (map show cols)
-                                         ++ " FROM "
-                                         ++ show table
-                                         ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
-                                         ++ ";"
+  showsPrec _ (SELECT cols table whre func) = let stmt = "SELECT " 
+                                                         ++ intercalate "," cols
+                                                         ++ " FROM "
+                                                         ++ table
+                                                         ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
+                                                  showFunc = intercalate " | " (map show func)
+                                              in case func
+                                                 of [] -> showString (stmt ++ ";")
+                                                    _  -> showString (stmt ++ " | " ++ showFunc ++ ";")
 
-instance Show Table where
-  showsPrec _ (Table t) = showString t
+instance Show Function where
+  showsPrec _ f = showString $ prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"
+    where showArg (k,v) = k ++ "=" ++ show v
 
-instance Show Column where
-  showsPrec _ (All)      = showString "*"
-  showsPrec _ (Column c) = showString c
+          prefix | local f   = "."
+                 | otherwise = ""
 
 instance Show Where where
-  showsPrec _ (c `OpEq` v)  = showString $ show c ++"="++ show v
-  showsPrec _ (c `OpIn` vs) = showString $ show c ++" IN ("++ intercalate "," (map show vs) ++")"
+  showsPrec _ (c `OpEq` v)  = showString $ c ++"="++ show v
+  showsPrec _ (c `OpIn` vs) = showString $ c ++" IN ("++ intercalate "," (map show vs) ++")"
   showsPrec _ (l `OpAnd` r) = showString $ show l ++" AND "++ show r
   showsPrec _ (l `OpOr` r)  = showString $ show l ++" OR "++ show r
 

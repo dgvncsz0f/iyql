@@ -35,29 +35,37 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "show select * without where produces correct stmt" $ 
-        eq "SELECT * FROM iyql;" (show $ SELECT [Column "*"] (Table "iyql") Nothing)
+        eq "SELECT * FROM iyql;" (show $ SELECT ["*"] "iyql" Nothing [])
 
 test1 = testCase "show select foo,bar without where produces correct stmt" $
-        eq "SELECT foo,bar FROM iyql;" (show $ SELECT [Column "foo",Column "bar"] (Table "iyql") Nothing)
+        eq "SELECT foo,bar FROM iyql;" (show $ SELECT ["foo","bar"] "iyql" Nothing [])
 
 test2 = testCase "show select foo with single where clause [txt]" $
-        eq "SELECT foo FROM iyql WHERE foo=\"bar\";" (show $ SELECT [Column "foo"] (Table "iyql") (Just $ Column "foo" `OpEq` TxtValue "bar"))
+        eq "SELECT foo FROM iyql WHERE foo=\"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [])
         
 test3 = testCase "show select pi with single where clause [num]" $ 
-        eq "SELECT pi FROM iyql WHERE pi=3.14;" (show $ SELECT [Column "pi"] (Table "iyql") (Just $ Column "pi" `OpEq` NumValue "3.14"))
+        eq "SELECT pi FROM iyql WHERE pi=3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") [])
 
 test4 = testCase "show select foo with single IN clause" $
-        eq "SELECT foo FROM iyql WHERE foo IN (\"b\",\"a\",\"r\");" (show $ SELECT [Column "foo"] (Table "iyql") (Just $ Column "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]))
+        eq "SELECT foo FROM iyql WHERE foo IN (\"b\",\"a\",\"r\");" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]) [])
 
 test5 = testCase "show select with where expression with and/or" $
-        do eq "SELECT foo FROM iyql WHERE foo=\"bar\" OR bar=\"foo\" AND pi=3.14;" (show $ SELECT [Column "foo"] (Table "iyql") (Just $ (Column "foo" `OpEq` TxtValue "bar") `OpOr` (Column "bar" `OpEq` TxtValue "foo") `OpAnd` (Column "pi" `OpEq` NumValue "3.14")))
+        do eq "SELECT foo FROM iyql WHERE foo=\"bar\" OR bar=\"foo\" AND pi=3.14;" (show $ SELECT ["foo"] "iyql" (Just $ ("foo" `OpEq` TxtValue "bar") `OpOr` ("bar" `OpEq` TxtValue "foo") `OpAnd` ("pi" `OpEq` NumValue "3.14")) [])
 
 test6 = testCase "read string creates correct type" $
-        do eq (SELECT [Column "foo",Column "bar"] (Table "iyql") (Just $ (Column "pi" `OpEq` NumValue "3.14") `OpOr` (Column "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]))) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
+        do eq (SELECT ["foo","bar"] "iyql" (Just $ ("pi" `OpEq` NumValue "3.14") `OpOr` ("foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"])) []) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
 
 test7 = testCase "show select escapes strings" $
-        do eq "SELECT * FROM iyql WHERE foo=\"foo\\\"bar\";" (show $ SELECT [Column "*"] (Table "iyql") (Just $ Column "foo" `OpEq` TxtValue "foo\"bar"))
-           eq "SELECT * FROM iyql WHERE foo=\"foo'bar\";" (show $ SELECT [Column "*"] (Table "iyql") (Just $ Column "foo" `OpEq` TxtValue "foo'bar"))
+        do eq "SELECT * FROM iyql WHERE foo=\"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") [])
+           eq "SELECT * FROM iyql WHERE foo=\"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") [])
+
+test8 = testCase "show select with remote functions" $ 
+        do eq "SELECT * FROM iyql | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo=\"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+
+test9 = testCase "show select with local functions" $ 
+        do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo=\"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 suite :: [Test]
 suite = [ testGroup "Stmt.hs" [ test0
@@ -68,5 +76,7 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test5
                               , test6
                               , test7
+                              , test8
+                              , test9
                               ]
         ]
