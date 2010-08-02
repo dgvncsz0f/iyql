@@ -49,50 +49,58 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test8
                                 , test9
                                 , test10
+                                , test11
+                                , test12
                                 ]
         ]
 
 test0 = testCase "select * without where" $ 
-        eq "SELECT * FROM iyql;" (runYqlParser "select * from iyql;")
+        eq "SELECT * FROM iyql;" (runYqlParser_ "select * from iyql;")
 
 test1 = testCase "select foo,bar without where" $
-        eq "SELECT foo,bar FROM iyql;" (runYqlParser "select foo,bar from iyql;")
+        eq "SELECT foo,bar FROM iyql;" (runYqlParser_ "select foo,bar from iyql;")
 
 test2 = testCase "select * with single where clause [text]" $
-        eq "SELECT * FROM iyql WHERE foo=\"bar\";" (runYqlParser "select * from iyql where foo='bar';")
+        eq "SELECT * FROM iyql WHERE foo=\"bar\";" (runYqlParser_ "select * from iyql where foo='bar';")
 
 test3 = testCase "select * with single where clause [num]" $
-        eq "SELECT * FROM iyql WHERE pi=3.141592653589793;" (runYqlParser "select * from iyql where pi=3.141592653589793;")
+        eq "SELECT * FROM iyql WHERE pi=3.141592653589793;" (runYqlParser_ "select * from iyql where pi=3.141592653589793;")
 
 test4 = testCase "select * with multiple and/or" $
-        eq "SELECT * FROM iyql WHERE foo=\"bar\" AND bar=\"foo\" OR id=me;" (runYqlParser "select * from iyql where foo=\"bar\" and bar=\"foo\" or id=me;")
+        eq "SELECT * FROM iyql WHERE foo=\"bar\" AND bar=\"foo\" OR id=me;" (runYqlParser_ "select * from iyql where foo=\"bar\" and bar=\"foo\" or id=me;")
 
 test5 = testCase "select * with `in' clause" $ 
-        eq "SELECT * FROM iyql WHERE foo IN (\"b\",\"a\",\"r\",3,\".\",1);" (runYqlParser "select * from iyql where foo in (\"b\",\"a\",\"r\",3,\".\",1);")
+        eq "SELECT * FROM iyql WHERE foo IN (\"b\",\"a\",\"r\",3,\".\",1);" (runYqlParser_ "select * from iyql where foo in (\"b\",\"a\",\"r\",3,\".\",1);")
 
 test6 = testCase "select * with functions" $
-        do eq "SELECT * FROM iyql | iyql(field=\"foobar\");" (runYqlParser "select * from iyql | iyql(field='foobar');")
-           eq "SELECT * FROM iyql | iyql() | sort();" (runYqlParser "select * from iyql | iyql() | sort();")
+        do eq "SELECT * FROM iyql | iyql(field=\"foobar\");" (runYqlParser_ "select * from iyql | iyql(field='foobar');")
+           eq "SELECT * FROM iyql | iyql() | sort();" (runYqlParser_ "select * from iyql | iyql() | sort();")
 
 test7 = testCase "select * using local filters [like]" $
-        do eq "SELECT * FROM iyql WHERE foo LIKE \"baz\";" (runYqlParser "select * from iyql where foo like \"baz\";")
-           eq "SELECT * FROM iyql WHERE foo NOT LIKE \"baz\";" (runYqlParser "select * from iyql where foo not like \"baz\";")
+        do eq "SELECT * FROM iyql WHERE foo LIKE \"baz\";" (runYqlParser_ "select * from iyql where foo like \"baz\";")
+           eq "SELECT * FROM iyql WHERE foo NOT LIKE \"baz\";" (runYqlParser_ "select * from iyql where foo not like \"baz\";")
 
 test8 = testCase "select * using local filters [matches]" $  
-        do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser "select * from iyql where foo matches \".*.bar*\";")
-           eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser "select * from iyql where foo not matches \"bar\";")
+        do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo matches \".*.bar*\";")
+           eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo not matches \"bar\";")
 
 test9 = testCase "select * using local filters [>,>=,=,!=,<,<=]" $
-        do eq "SELECT * FROM iyql WHERE foo > 7;" (runYqlParser "select * from iyql where foo > 7;")
-           eq "SELECT * FROM iyql WHERE foo >= 7;" (runYqlParser "select * from iyql where foo >= 7;")
-           eq "SELECT * FROM iyql WHERE foo <= 7;" (runYqlParser "select * from iyql where foo <= 7;")
-           eq "SELECT * FROM iyql WHERE foo < 7;" (runYqlParser "select * from iyql where foo < 7;")
-           eq "SELECT * FROM iyql WHERE foo = 7;" (runYqlParser "select * from iyql where foo = 7;")
-           eq "SELECT * FROM iyql WHERE foo != 7;" (runYqlParser "select * from iyql where foo != 7;")
+        do eq "SELECT * FROM iyql WHERE foo > 7;" (runYqlParser_ "select * from iyql where foo > 7;")
+           eq "SELECT * FROM iyql WHERE foo >= 7;" (runYqlParser_ "select * from iyql where foo >= 7;")
+           eq "SELECT * FROM iyql WHERE foo <= 7;" (runYqlParser_ "select * from iyql where foo <= 7;")
+           eq "SELECT * FROM iyql WHERE foo < 7;" (runYqlParser_ "select * from iyql where foo < 7;")
+           eq "SELECT * FROM iyql WHERE foo = 7;" (runYqlParser_ "select * from iyql where foo = 7;")
+           eq "SELECT * FROM iyql WHERE foo != 7;" (runYqlParser_ "select * from iyql where foo != 7;")
 
 test10 = testCase "select with where clause with different precedence" $
-         do eq "SELECT * FROM iyql WHERE (foo=2 and bar=3) or (foo=5 and bar=7);" (runYqlParser "select * from iyql where (foo=2 and bar=3) or (foo=5 and bar=7);")
-            eq "SELECT * FROM iyql WHERE (foo=2 or bar=3) and (foo=4 or bar=7);" (runYqlParser "select * from iyql where (foo=2 or bar=3) and (foo=5 or bar=7);")
+         do eq "SELECT * FROM iyql WHERE (foo=2 and bar=3) or (foo=5 and bar=7);" (runYqlParser_ "select * from iyql where (foo=2 and bar=3) or (foo=5 and bar=7);")
+            eq "SELECT * FROM iyql WHERE (foo=2 or bar=3) and (foo=4 or bar=7);" (runYqlParser_ "select * from iyql where (foo=2 or bar=3) and (foo=5 or bar=7);")
+
+test11 = testCase "local functions should not precede any remote functions" $ 
+         do eq "parse error" (runYqlParser "select * from iyql | .bar() | foo();")
+
+test12 = testCase "local and remote functions in the same query" $ 
+         do eq "SELECT * FROM iyql | foo() | .bar();" (runYqlParser_ "select * from iyql | foo() | .bar();")
 
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
@@ -113,14 +121,15 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onInExpr     = mkInExpr
                              , onAndExpr    = mkAndExpr
                              , onOrExpr     = mkOrExpr
-                             , onFunction   = mkFunc
+                             , onLocalFunc  = mkFunc "."
+                             , onRemoteFunc = mkFunc ""
                              }
   where mkValue v = "\"" ++ v ++ "\""
         
         mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
         mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
         
-        mkFunc n as = n ++ "("++ intercalate "," (map showArg as) ++")"
+        mkFunc p n as = p ++ n ++ "("++ intercalate "," (map showArg as) ++")"
           where showArg (k,v) = k ++"="++ v
 
         mkEqExpr c v = c ++"="++ v
@@ -134,4 +143,9 @@ stringBuilder = ParserEvents { onIdentifier = id
 runYqlParser :: String -> String
 runYqlParser input = case (parseYql input stringBuilder)
                      of Right output -> output
-                        Left err     -> error "parse error"
+                        Left err     -> "parse error: " ++ (show err)
+
+runYqlParser_ :: String -> String
+runYqlParser_ input = case (parseYql input stringBuilder)
+                          of Right output -> output
+                             Left err     -> error "parse error"

@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -W -Wall -fno-warn-unused-do-bind #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
@@ -28,16 +29,27 @@
 module Yql.Core.Backend
        ( -- * Types
          Yql(..)
-       , StdBackend(..)
+       , Backend(..)
+       , Output()
+       , OutputT()
+         -- * Monads
+       , unOutputT
        ) where
 
+import Control.Monad
 import Control.Monad.Trans
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Char8 as B
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 import Yql.Core.Stmt
+
+newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
+
+type Output a = Either String a
+
+data Backend m = YqlBackend Application (Token -> String -> OAuthMonad m ())
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
@@ -49,25 +61,67 @@ class Yql y where
   app :: y -> Application
   
   -- | Given an statement executes the query on yql. This function is
-  -- able to decide whenever that query requires authentication. If it
-  -- does, it uses the oauth token in order to fullfil the request.
-  execute :: (MonadIO m, HttpClient m) => y -> Statement -> m Response
-  execute y stmt = runOAuth $ serviceRequest PLAINTEXT (Just "yahooapis.com") newRequest
-    where newRequest = ReqHttp { version    = Http11
+  -- able to decide whenever that query requires authentication
+  -- [TODO]. If it does, it uses the oauth token in order to fullfil
+  -- the request.
+  execute :: (Functor m,MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
+  execute y l stmt = do mkRequest  <- fmap before (resolve l stmt)
+                        mkResponse <- fmap after (resolve l stmt)
+                        mkOutput   <- fmap transform (resolve l stmt)
+                        response   <- lift (runOAuth (serviceRequest PLAINTEXT (Just "yahooapis.com") (mkRequest yqlRequest)))
+                        asString (mkResponse response) >>= return . mkOutput
+                        
+    where yqlRequest = ReqHttp { version    = Http11
                                , ssl        = False
                                , host       = endpoint y
                                , port       = 80
                                , method     = GET
                                , reqHeaders = empty
                                , pathComps  = ["","v1","public","yql"]
-                               , qString    = fromList [("q",show stmt)]
+                               , qString    = fromList [("q",show preparedStmt)]
                                , reqPayload = B.empty
                                }
+          
+          preparedStmt = case stmt
+                         of (SELECT c t w f) -> SELECT c t w (filter remote f)
+                            _                -> stmt
+          
+          asString rsp | status rsp `elem` [200..299] = return (B.unpack . rspPayload $ rsp)
+                       | otherwise                    = fail (B.unpack . rspPayload $ rsp)
 
--- | Reference implementation.
-data StdBackend m = StdBackend String Application (Token -> String -> OAuthMonad m ())
-
-instance Yql (StdBackend m) where
-  endpoint (StdBackend v _ _) = v
+instance Yql (Backend m) where
+  endpoint (YqlBackend _ _) = "query.yahooapis.com"
   
-  app (StdBackend _ v _) = v
+  app (YqlBackend v _) = v
+
+instance MonadTrans OutputT where
+  lift = OutputT . liftM Right
+
+instance MonadIO m => MonadIO (OutputT m) where
+  liftIO mv = OutputT (liftIO $ do v <- mv
+                                   return (Right v))
+
+instance Monad m => Monad (OutputT m) where
+  fail = OutputT . return . Left
+  
+  return = OutputT . return . Right
+  
+  (OutputT mv) >>= f = OutputT $ do v <- mv
+                                    case v
+                                      of Left msg -> return (Left msg)
+                                         Right v' -> unOutputT (f v')
+
+instance Monad m => Functor (OutputT m) where
+  fmap f (OutputT mv) = OutputT $ do v <- mv
+                                     case v
+                                       of Left msg -> return (Left msg)
+                                          Right v' -> return (Right $ f v')
+
+instance Monad (Either String) where
+  fail = Left
+  
+  return = Right
+  
+  m >>= f = case m
+            of Right v  -> f v
+               Left msg -> Left msg

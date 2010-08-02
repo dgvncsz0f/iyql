@@ -39,14 +39,16 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "test endpoint returns the string defined" $
-        eq "query.yahooapis.com" (endpoint $ StdBackend "query.yahooapis.com" undefined undefined)
+        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined undefined)
 
 test1 = testCase "test application returns the app defined" $ 
-        eq (Application "foo" "bar" OOB) (app $ StdBackend undefined (Application "foo" "bar" OOB) undefined)
+        eq (Application "foo" "bar" OOB) (app $ YqlBackend (Application "foo" "bar" OOB) undefined)
 
-test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $ 
-        do resp <- unCurlM (execute (StdBackend "query.yahooapis.com" undefined undefined) (read "select title,abstract from search.web where query=\"iyql\";"))
-           eq 200 (status resp)
+test2 = testCase "test execute_ with `select title,abstract from search.web where query=\"iyql\"'" $ 
+        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined undefined) () (read "select title,abstract from search.web where query=\"iyql\";")
+           ok (isRight resp)
+  where isRight (Right _) = True
+        isRight _         = False
 
 suite :: [Test]
 suite = [ testGroup "Engine.hs" [ test0

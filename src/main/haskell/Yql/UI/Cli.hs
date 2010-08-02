@@ -30,8 +30,6 @@ module Yql.UI.Cli where
 import Data.Char
 import System.Console.Haskeline
 import Network.OAuth.Http.HttpClient
-import Network.OAuth.Http.Response
-import qualified Data.ByteString.Lazy.Char8 as B
 import Control.Monad.Trans
 import Yql.Core.Backend
 import Yql.Core.Parser
@@ -79,8 +77,7 @@ loop y = do minput <- getInputLine "iyql> "
                              | empty input -> loop y
                              | otherwise   -> do outputStrLn (show err)
                                                  outputStrLn ""
-                           Right stmt      -> do rsp <- liftIO (fmap rspPayload (unCurlM (execute y stmt)))
-                                                 outputStrLn (B.unpack rsp)
+                           Right stmt      -> liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= outputStrLn . either id id
 
 iyql :: Yql y => y -> InputT IO ()
 iyql y = do outputVersion

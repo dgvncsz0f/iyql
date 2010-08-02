@@ -41,4 +41,4 @@ main = do cfg <- fmap settings getHomeDirectory
                                  , autoAddHistory = False
                                  }
         
-        backend = StdBackend "query.yahooapis.com" undefined undefined
+        backend = YqlBackend undefined undefined

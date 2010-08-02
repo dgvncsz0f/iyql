@@ -54,7 +54,8 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onInExpr     :: i -> [v] -> w
                                            , onAndExpr    :: w -> w -> w
                                            , onOrExpr     :: w -> w -> w
-                                           , onFunction   :: i -> [(i,v)] -> f
+                                           , onLocalFunc  :: i -> [(i,v)] -> f
+                                           , onRemoteFunc :: i -> [(i,v)] -> f
                                          }
 
 -- | Parses an string, which must be a valid yql expression, using
@@ -139,13 +140,16 @@ parseWhere e = do column <- parseIdentifier e
         parseValueBy _ _         = fail "expecting one of [=,IN]"
 
 parseFunction :: ParserEvents i v w f s -> YqlParser f
-parseFunction e = do n <- parseIdentifier e
+parseFunction e = do n <- symbol_
                      keyword (=="(")
                      argv <- arguments `sepBy` keyword (==",")
                      keyword (==")")
-                     return (onFunction e n argv)
+                     mkFunc n argv
   where arguments = do k <- parseIdentifier e
                        keyword (=="=")
                        v <- parseValue e
                        return (k,v)
+        
+        mkFunc ('.':n) argv = return (onLocalFunc e (onIdentifier e n) argv)
+        mkFunc n argv       = return (onRemoteFunc e (onIdentifier e n) argv)
                      

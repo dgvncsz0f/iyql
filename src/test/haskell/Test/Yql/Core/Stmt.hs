@@ -28,7 +28,9 @@
 module Test.Yql.Core.Stmt where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
+#define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
+import Data.Maybe
 import Yql.Core.Stmt
 import Test.Framework
 import Test.Framework.Providers.HUnit
@@ -67,6 +69,30 @@ test9 = testCase "show select with local functions" $
         do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
            eq "SELECT * FROM iyql WHERE foo=\"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
+test10 = testCase "pipeline [transform] is in correct order" $
+         do eq (Just "foobar>") (fmap (($ ">") . transform) (pipeline myLinker [Local "foo" [],Local "bar" []]))
+            eq (Just "foobar>") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar" []]))
+  where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
+                   , ("bar", const (Just (Transform ("bar"++))))
+                   , ("foobar", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
+                   ] :: [(String,[(String,Value)] -> Maybe Exec)]
+
+test11 = testCase "pipeline generates error when function is not found" $
+         do ok (isNothing $ pipeline () [Local "foo" []])
+            ok (isJust $ pipeline () [])
+
+test12 = testCase "resolve [transform] is in correct order" $
+         do eq (Just "foobar>") (fmap (($ ">") . transform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
+            eq (Just "foobar>") (fmap (($ ">") . transform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foobar" []])))
+  where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
+                   , ("bar", const (Just (Transform ("bar"++))))
+                   , ("foobar", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
+                   ] :: [(String,[(String,Value)] -> Maybe Exec)]
+
+test13 = testCase "resolve generates error when function is not found" $
+         do ok (isNothing $ resolve () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
+            ok (isJust $ resolve () (SELECT ["*"] "foobar" Nothing []))
+
 suite :: [Test]
 suite = [ testGroup "Stmt.hs" [ test0
                               , test1
@@ -78,5 +104,8 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test7
                               , test8
                               , test9
+                              , test10
+                              , test11
+                              , test12
                               ]
         ]
