@@ -130,9 +130,14 @@ yqlRequest vs = Just (Before func)
         
         func r = r { qString = replaces params (qString r) }
 
+-- | Output the result as a table instead of xml
+
+
 -- | Default linker
 ldd :: [(String,[(String,Value)] -> Maybe Exec)]
 ldd = [ ("request",yqlRequest)
+      , ("json",const (yqlRequest [("format",TxtValue "json")]))
+      , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
       ] 
 
 -- | Listen to parser events to build Statement type.
