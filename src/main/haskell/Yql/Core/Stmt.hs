@@ -50,7 +50,6 @@ module Yql.Core.Stmt
          -- * Misc
        , resolve
        , pipeline
-       , ldd
        ) where
 
 import Yql.Core.Parser
@@ -119,26 +118,6 @@ pipeline l (f:fs) = case (link l (name f) (args f))
 resolve :: (Monad m, Linker l) => l -> Statement -> m Pipeline
 resolve l stmt = let fs = filter local (functions stmt)
                  in pipeline l fs
-
--- | Change the format parameter
-yqlRequest :: [(String,Value)] -> Maybe Exec
-yqlRequest vs = Just (Before func)
-  where myShow (TxtValue v) = v
-        myShow v            = show v
-        
-        params = map (\(k,v) -> (k,myShow v)) vs
-        
-        func r = r { qString = replaces params (qString r) }
-
--- | Output the result as a table instead of xml
-
-
--- | Default linker
-ldd :: [(String,[(String,Value)] -> Maybe Exec)]
-ldd = [ ("request",yqlRequest)
-      , ("json",const (yqlRequest [("format",TxtValue "json")]))
-      , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
-      ] 
 
 -- | Listen to parser events to build Statement type.
 builder :: ParserEvents String Value Where Function Statement

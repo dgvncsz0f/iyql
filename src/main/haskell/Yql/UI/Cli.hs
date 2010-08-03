@@ -34,6 +34,7 @@ import Control.Monad.Trans
 import Yql.Core.Backend
 import Yql.Core.Parser
 import Yql.Core.Stmt
+import Yql.Core.Ldd
 import Yql.Version
 
 eol :: String -> Bool
