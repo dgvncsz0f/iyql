@@ -25,18 +25,19 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Ldd
-       ( ldd
+module Yql.Core.Functions.Request
+       ( yqlRequest
        ) where
 
 import Yql.Core.Stmt
-import Yql.Core.Functions.Request
-import Yql.Core.Functions.Tables
+import Network.OAuth.Http.Request
 
--- | Default linker
-ldd :: [(String,[(String,Value)] -> Maybe Exec)]
-ldd = [ ("request",yqlRequest)
-      , ("json",const (yqlRequest [("format",TxtValue "json")]))
-      , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
-      , ("tables",tables)
-      ]
+-- | Change the format parameter
+yqlRequest :: [(String,Value)] -> Maybe Exec
+yqlRequest vs = Just (Before func)
+  where myShow (TxtValue v) = v
+        myShow v            = show v
+        
+        params = map (\(k,v) -> (k,myShow v)) vs
+        
+        func r = r { qString = replaces params (qString r) }

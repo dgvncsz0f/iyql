@@ -109,9 +109,9 @@ pipeline l (f:fs) = case (link l (name f) (args f))
                     of Nothing -> fail $ "unknown function: " ++ name f
                        Just ex -> liftM (merge ex) (pipeline l fs)
   where merge t0 t = case t0
-                     of Before fx    -> t { before    = fx . (before t) }
-                        After fx     -> t { after     = fx . (after t) }
-                        Transform fx -> t { transform = fx . (transform t) }
+                     of Before fx    -> t { before    = (before t) . fx }
+                        After fx     -> t { after     = (after t) . fx }
+                        Transform fx -> t { transform = (transform t) . fx }
                         Seq ex0 ex1  -> merge ex0 (merge ex1 t)
 
 -- | Extracts the local functions from the statement and creates a pipeline.

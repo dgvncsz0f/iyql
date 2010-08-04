@@ -70,11 +70,17 @@ test9 = testCase "show select with local functions" $
            eq "SELECT * FROM iyql WHERE foo=\"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test10 = testCase "pipeline [transform] is in correct order" $
-         do eq (Just "foobar>") (fmap (($ ">") . transform) (pipeline myLinker [Local "foo" [],Local "bar" []]))
-            eq (Just "foobar>") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar" []]))
+         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . transform) (pipeline myLinker [Local "foo" [],Local "bar" []]))
+            eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar1" []]))
+            eq (Just $ ("bar"++).(++"foo") $ ">") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar2" []]))
+            eq (Just $ (++"bar").(++"foo") $ ">") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar3" []]))
+            eq (Just $ (++"bar").("foo"++) $ ">") (fmap (($ ">") . transform) (pipeline myLinker [Local "foobar4" []]))
   where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
                    , ("bar", const (Just (Transform ("bar"++))))
-                   , ("foobar", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
+                   , ("foobar1", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
+                   , ("foobar2", const (Just $ Transform (++"foo") `Seq` Transform ("bar"++)))
+                   , ("foobar3", const (Just $ Transform (++"foo") `Seq` Transform (++"bar")))
+                   , ("foobar4", const (Just $ Transform ("foo"++) `Seq` Transform (++"bar")))
                    ] :: [(String,[(String,Value)] -> Maybe Exec)]
 
 test11 = testCase "pipeline generates error when function is not found" $
@@ -82,11 +88,9 @@ test11 = testCase "pipeline generates error when function is not found" $
             ok (isJust $ pipeline () [])
 
 test12 = testCase "resolve [transform] is in correct order" $
-         do eq (Just "foobar>") (fmap (($ ">") . transform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
-            eq (Just "foobar>") (fmap (($ ">") . transform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foobar" []])))
+         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . transform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
   where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
                    , ("bar", const (Just (Transform ("bar"++))))
-                   , ("foobar", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
                    ] :: [(String,[(String,Value)] -> Maybe Exec)]
 
 test13 = testCase "resolve generates error when function is not found" $
