@@ -41,3 +41,18 @@ h3. 4.4. Extense SELECT using ".tables()" function:
 
 <pre><code>iyql> select guid,following,followers,name,title from meme.info where name in ("dsouza","julcirocha","meme") | .tables();</code></pre>
   * Screenshot: "4-extense-select.png":http://github.com/guilhermechapiewski/iyql/raw/master/screenshots/4-extense-select.png
+
+h2. Installing and compiling
+
+1) Install the following dependencies using "Cabal":http://www.haskell.org/cabal/:
+
+<pre><code>$ cabal install hoauth
+$ cabal install haxml
+$ cabal install test-framework-hunit</code></pre>
+
+2) Compile and install
+
+<pre><code>$ make
+$ sudo make install</code></pre>
+
+_* "make install" will copy the "iyql" binary to your /usr/local/bin directory._

@@ -15,11 +15,18 @@ TESTPRG=$(basename $(TESTPRG_SRC))
 HC=/usr/bin/ghc
 HCFLAGS=
 
+PREFIX=/usr/local
+
+
 .PHONY: default
 default: compile
 
 .PHONY: compile
 compile: $(MAINOBJ) $(MAINPRG)
+
+.PHONY: install
+install: $(MAINPRG)
+	install -m 0755 $(MAINPRG) $(PREFIX)/bin
 
 .PHONY: test
 test: compile $(TESTPRG)
