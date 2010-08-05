@@ -44,19 +44,40 @@ h3. 4.4. Extense SELECT using ".tables()" function:
 
 h2. 5. Installing
 
-h3. 5.1. Install dependencies
+_* "test-framework-hunit" is only needed if you want to execute "make test" before installing._
+
+h3. 5.1. Install dependencies - MacOS
+
+Install the following using macports:
+
+<pre><code>
+$ sudo port install haskell-platform
+$ sudo port install hs-haskeline
+$ sudo port install curl
+</code></pre>
 
 Install the following dependencies using "Cabal":http://www.haskell.org/cabal/:
 
-<pre><code>$ cabal install hoauth
+<pre><code>
+$ cabal install hoauth
 $ cabal install haxml
-$ cabal install test-framework-hunit</code></pre>
+$ cabal install test-framework-hunit
+</code></pre>
 
-_* "test-framework-hunit" is only needed if you want to execute "make test" before installing._
+h3. 5.2. Install dependencies - Debian
 
-h3. 5.2. Compile and Install
+<pre><code>
+$ sudo apt-get install cabal-install libghc6-curl-dev libghc6-parsec2-dev libghc6-haskeline-dev
+$ cabal install hoauth
+$ cabal install haxml
+$ cabal install test-framework-hunit
+</code></pre>
 
-<pre><code>$ make
-$ sudo make install</code></pre>
+h3. 5.3. Compile and Install
+
+<pre><code>
+$ make
+$ sudo make install
+</code></pre>
 
 _* "make install" will copy the "iyql" binary to your /usr/local/bin directory._
