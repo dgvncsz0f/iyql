@@ -18,26 +18,26 @@ There will be local commands, that are useful to inspect the state of the progra
 
 h2. 4. Examples
 
-h3. Simple SELECT:
+h3. 4.1. Simple SELECT:
 
 <pre><code>iyql> select * from meme.info where name="dsouza";</code></pre>
   * Screenshot: "1-simple-select.png":http://github.com/guilhermechapiewski/iyql/raw/master/screenshots/1-simple-select.png
 
-h3. Local ".json()" function:
+h3. 4.2. Local ".json()" function:
 
 Transforms the results to "JSON":http://www.json.org format:
 
 <pre><code>iyql> select * from meme.info where name="dsouza" | .json();</code></pre>
   * Screenshot: "2-local-json-function.png":http://github.com/guilhermechapiewski/iyql/raw/master/screenshots/2-local-json-function.png
 
-h3. Local ".tables()" function:
+h3. 4.3. Local ".tables()" function:
 
 Transforms the results to a table-like format (similar to MySQL):
 
 <pre><code>iyql> select guid,pubid from meme.posts where owner_guid="XYZXPTOETCXYZXPTOETC" | .tables();</code></pre>
   * Screenshot: "3-local-tables-function.png":http://github.com/guilhermechapiewski/iyql/raw/master/screenshots/3-local-tables-function.png
 
-h3. Extense SELECT using ".tables()" function:
+h3. 4.4. Extense SELECT using ".tables()" function:
 
 <pre><code>iyql> select guid,following,followers,name,title from meme.info where name in ("dsouza","julcirocha","meme") | .tables();</code></pre>
   * Screenshot: "4-extense-select.png":http://github.com/guilhermechapiewski/iyql/raw/master/screenshots/4-extense-select.png
