@@ -76,9 +76,9 @@ class Yql y where
   -- the request.
   execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
   execute y l stmt = do secLevel    <- securityLevel
-                        mkRequest   <- fmap before (resolve l stmt)
-                        mkResponse  <- fmap after (resolve l stmt)
-                        mkOutput    <- fmap transform (resolve l stmt)
+                        mkRequest   <- fmap execBefore (resolve l stmt)
+                        mkResponse  <- fmap execAfter (resolve l stmt)
+                        mkOutput    <- fmap execTransform (resolve l stmt)
                         response    <- lift (runOAuth (serviceRequest PLAINTEXT 
                                                                       (Just "yahooapis.com") 
                                                                       (mkRequest $ yqlRequest secLevel)))

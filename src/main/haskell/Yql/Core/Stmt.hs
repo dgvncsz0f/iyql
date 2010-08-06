@@ -35,7 +35,6 @@ module Yql.Core.Stmt
        , Statement(..)
        , Function(..)
        , Exec(..)
-       , Pipeline(..)
        , Linker(..)
          -- * Query
        , select
@@ -57,6 +56,9 @@ module Yql.Core.Stmt
          -- * Misc
        , resolve
        , pipeline
+       , execBefore
+       , execAfter
+       , execTransform
        ) where
 
 import Yql.Core.Parser
@@ -101,14 +103,8 @@ data Statement = SELECT [String] String (Maybe Where) [Function]
 data Exec = Before (Request -> Request)
           | After (Response -> Response)
           | Transform (String -> String)
+          | NOp
           | Seq Exec Exec
-
--- | Sequence a group of Exec types in order to make it easier to
--- execute.
-data Pipeline = ExecTransform { before    :: Request -> Request
-                              , after     :: Response -> Response
-                              , transform :: String -> String
-                              }
 
 -- | The different security level tables may request
 data Security = User    -- ^ Requires 3-legged oauth to perform the request
@@ -125,20 +121,30 @@ data Description = Table String Security
 class Linker r where
   link :: r -> String -> [(String,Value)] -> Maybe Exec
 
+execTransform :: Exec -> String -> String
+execTransform (Transform f) s = f s
+execTransform (Seq fa fb) s   = execTransform fb (execTransform fa s)
+execTransform _ s             = s
+
+execBefore :: Exec -> Request -> Request
+execBefore (Before f) r  = f r
+execBefore (Seq fa fb) r = execBefore fb (execBefore fa r)
+execBefore _ r           = r
+
+execAfter :: Exec -> Response -> Response
+execAfter (After f) r   = f r
+execAfter (Seq fa fb) r = execAfter fb (execAfter fa r)
+execAfter _ r           = r
+
 -- | Transforms a list of functions into a pipeline using a given linker.
-pipeline :: Monad m => Linker l => l -> [Function] -> m Pipeline
-pipeline _ []     = return (ExecTransform id id id)
+pipeline :: Monad m => Linker l => l -> [Function] -> m Exec
+pipeline _ []     = return NOp
 pipeline l (f:fs) = case (link l (name f) (args f))
                     of Nothing -> fail $ "unknown function: " ++ name f
-                       Just ex -> liftM (merge ex) (pipeline l fs)
-  where merge t0 t = case t0
-                     of Before fx    -> t { before    = (before t) . fx }
-                        After fx     -> t { after     = (after t) . fx }
-                        Transform fx -> t { transform = (transform t) . fx }
-                        Seq ex0 ex1  -> merge ex0 (merge ex1 t)
+                       Just ex -> liftM (ex `Seq`) (pipeline l fs)
 
 -- | Extracts the local functions from the statement and creates a pipeline.
-resolve :: (Monad m, Linker l) => l -> Statement -> m Pipeline
+resolve :: (Monad m, Linker l) => l -> Statement -> m Exec
 resolve l stmt = let fs = filter local (functions stmt)
                  in pipeline l fs
 

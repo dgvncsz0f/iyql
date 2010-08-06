@@ -32,10 +32,12 @@ import qualified Test.Yql.Core.Lexer as A
 import qualified Test.Yql.Core.Parser as B
 import qualified Test.Yql.Core.Stmt as C
 import qualified Test.Yql.Core.Backend as D
+import qualified Test.Yql.Core.Functions.Tables as E
 
 main :: IO ()
 main = defaultMain $ concat [ A.suite
                             , B.suite
                             , C.suite
                             , D.suite
+                            , E.suite
                             ]
