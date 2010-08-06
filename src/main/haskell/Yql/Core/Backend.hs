@@ -36,6 +36,11 @@ module Yql.Core.Backend
        , unOutputT
        ) where
 
+import Yql.Core.Stmt
+import Yql.Xml
+import Data.Char
+import Data.Maybe
+import Data.List (isPrefixOf)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
@@ -44,10 +49,6 @@ import Network.OAuth.Consumer
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
-import Yql.Core.Stmt
-import Text.XML.HaXml.Parse (xmlParse)
-import Text.XML.HaXml.Types
-import Text.XML.HaXml.Posn
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
@@ -67,9 +68,10 @@ class Yql y where
   -- | Tells the minimum security level required to perform this
   -- statament.
   executeDesc :: (MonadIO m,HttpClient m) => y -> String -> OutputT m Description
-  executeDesc y t = fmap (readDescXml . parseXml) (execute y () (DESC t []))
-    where parseXml xml = case (xmlParse "yql xml" xml)
-                         of Document _ _ docRoot _ -> CElem docRoot (posInNewCxt "yql xml" Nothing)
+  executeDesc y t = execute y () (DESC t []) >>= parseXml
+    where parseXml xml = case (xmlParse xml)
+                         of Just doc -> return $ readDescXml doc
+                            Nothing  -> fail "error parsing xml"
   
   -- | Given an statement executes the query on yql. This function is
   -- able to decide whenever that query requires authentication
@@ -83,7 +85,7 @@ class Yql y where
                         response    <- lift (runOAuth (serviceRequest PLAINTEXT 
                                                                       (Just "yahooapis.com") 
                                                                       (mkRequest $ yqlRequest secLevel)))
-                        fmap mkOutput (asString (mkResponse response))
+                        return $ mkOutput (toString (mkResponse response))
                         
     where yqlRequest s = ReqHttp { version    = Http11
                                  , ssl        = True
@@ -107,9 +109,19 @@ class Yql y where
                          of (SELECT c t w f) -> SELECT c t w (filter remote f)
                             (DESC t _)       -> DESC t []
           
-          asString rsp | status rsp `elem` [200..299] = return (U.decode . B.unpack . rspPayload $ rsp)
-                       | otherwise                    = fail (U.decode . B.unpack . rspPayload $ rsp)
-
+toString :: Response -> String
+toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
+              | otherwise         = payload
+  where statusOk = status resp `elem` [200..299]
+        
+        payload = U.decode . B.unpack . rspPayload $ resp
+        
+        contentType = find (\s -> map toLower s == "content-type") (rspHeaders resp)
+        
+        isXML = case contentType
+                of (x:_) -> "text/xml" `isPrefixOf` (dropWhile isSpace x)
+                   _     -> False
+        
 instance Yql (Backend m) where
   endpoint (YqlBackend _ _) = "query.yahooapis.com"
   

@@ -62,15 +62,13 @@ module Yql.Core.Stmt
        ) where
 
 import Yql.Core.Parser
+import Yql.Xml
 import Data.List
 import Data.Char
 import Data.Maybe
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Control.Monad
-import Text.XML.HaXml.Types (Content)
-import Text.XML.HaXml.Xtract.Parse
-import Text.XML.HaXml.Verbatim
 
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
@@ -227,17 +225,17 @@ showStmt stmt = case stmt
 readStmt :: String -> Either ParseError Statement
 readStmt = flip parseYql builder
 
-readDescXml :: Content i -> Description
+readDescXml :: XML -> Description
 readDescXml xml = case (map toLower securityAttr)
                   of "user" -> Table nameAttr User
                      "app"  -> Table nameAttr App
                      _      -> Table nameAttr Any
                   
-  where attr k = concatMap verbatim . xtract id ("//results/table/@"++k) $ xml
+  where attr k = join (fmap (attribute k) (findElement "table" xml))
         
-        securityAttr = attr "security"
+        Just securityAttr = attr "security"
         
-        nameAttr = attr "name"
+        Just nameAttr = attr "name"
 
 showFunc :: Function -> String
 showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"

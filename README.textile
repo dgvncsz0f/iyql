@@ -60,7 +60,7 @@ Install the following dependencies using "Cabal":http://www.haskell.org/cabal/:
 
 <pre><code>
 $ cabal install hoauth
-$ cabal install haxml
+$ cabal install xml
 $ cabal install test-framework-hunit
 </code></pre>
 
@@ -69,7 +69,7 @@ h3. 5.2. Install dependencies - Debian
 <pre><code>
 $ sudo apt-get install cabal-install libghc6-curl-dev libghc6-parsec2-dev libghc6-haskeline-dev
 $ cabal install hoauth
-$ cabal install haxml
+$ cabal install xml
 $ cabal install test-framework-hunit
 </code></pre>
 

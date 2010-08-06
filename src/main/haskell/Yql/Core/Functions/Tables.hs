@@ -30,12 +30,8 @@ module Yql.Core.Functions.Tables
        ) where
 
 import Yql.Core.Stmt
+import Yql.Xml
 import Data.List
-import Text.XML.HaXml.Parse (xmlParse)
-import Text.XML.HaXml.Types
-import Text.XML.HaXml.Xtract.Parse
-import Text.XML.HaXml.Posn (posInNewCxt)
-import Text.XML.HaXml.Verbatim
 import qualified Data.Map as M
 
 newtype Column = Column { unColumn :: (String,[Cell]) }
@@ -147,38 +143,19 @@ showTable = cat . map (showTable_ 1) . transpose . map showColumn . rows
                                               <> rspace (w - width x) x)
                                   <> showTable_ (acc+w+1) xs
 
-tagName :: Content i -> String
-tagName (CElem (Elem n _ _) _) = n
-tagName _                      = error "CElem expected"
-
-childNodes :: Content i -> [Content i]
-childNodes (CElem (Elem _ _ cs) _) = cs
-childNodes _                       = []
-
-tagContent :: Content i -> [Char]
-tagContent = concatMap verbatim . childNodes
-
-textNode :: Content i -> Bool
-textNode (CString _ _ _) = True
-textNode _               = False
-
-elemNode :: Content i -> Bool
-elemNode (CElem _ _) = True
-elemNode _           = False
-
 xml2doc :: String -> Doc
 xml2doc xml = showTable . xml2table $ results
- where Document _ _ docRoot _ = xmlParse "yql xml" xml
+ where Just doc = xmlParse xml
        
-       results = xtract id "//results/*" (CElem docRoot (posInNewCxt "yql xml" Nothing))
+       Just results = fmap (childNodes) (findElement "results" doc)
 
-xml2table :: [Content i] -> Table
+xml2table :: [XML] -> Table
 xml2table = unpack . build . xmlRows
-  where xmlRows tag = map (map xmlCols . filter elemNode . childNodes) tag
+  where xmlRows tag = map (map xmlCols . filter element . childNodes) tag
         
-        xmlCols tag | simple    = (tagName tag,[Scalar (tagContent tag)])
+        xmlCols tag | simple    = (tagName tag,[Scalar (verbatim tag)])
                     | otherwise = (tagName tag,[Complex (xml2table [tag])]) 
-          where simple = all textNode (childNodes tag)
+          where simple = all pcdata (childNodes tag)
         
         build = foldr (M.unionWith (++)) M.empty . map (M.fromListWith (++))
         
