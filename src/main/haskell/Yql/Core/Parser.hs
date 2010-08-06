@@ -29,6 +29,7 @@
 module Yql.Core.Parser
        ( -- * Types
          ParserEvents(..)
+       , ParseError
          -- * Parser
        , parseYql
        )
@@ -49,7 +50,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> s
                                            , onInsert     :: [(i,v)] -> i -> s
                                            , onDelete     :: i -> Maybe w -> s
-                                           , onDesc       :: i -> s
+                                           , onDesc       :: i -> [f] -> s
                                            , onEqExpr     :: i -> v -> w
                                            , onInExpr     :: i -> [v] -> w
                                            , onAndExpr    :: w -> w -> w
@@ -65,6 +66,7 @@ parseYql input e = case tokStream
                    of Left err     -> Left err
                       Right input_ -> runParser parseYql_ () "stdin" input_
   where parseYql_ = parseSelect e
+                    <|> parseDesc e
         
         tokStream = runParser scan "" "stdin" input
 
@@ -100,6 +102,15 @@ tkEof :: YqlParser ()
 tkEof = accept $ \t -> case t
                        of TkEOF -> Just ()
                           _     -> Nothing
+
+parseDesc :: ParserEvents i v w f s -> YqlParser s
+parseDesc e = do keyword (=="DESC")
+                 t <- parseIdentifier e
+                 f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
+                      <|> return []
+                 keyword (==";")
+                 tkEof
+                 return (onDesc e t f)
 
 parseSelect :: ParserEvents i v w f s -> YqlParser s
 parseSelect e = do keyword (=="SELECT")

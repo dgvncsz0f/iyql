@@ -44,6 +44,9 @@ import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 import Yql.Core.Stmt
+import Text.XML.HaXml.Parse (xmlParse)
+import Text.XML.HaXml.Types
+import Text.XML.HaXml.Posn
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
@@ -60,31 +63,48 @@ class Yql y where
   -- authenticated requests.
   app :: y -> Application
   
+  -- | Tells the minimum security level required to perform this
+  -- statament.
+  executeDesc :: (MonadIO m,HttpClient m) => y -> String -> OutputT m Description
+  executeDesc y t = fmap (readDescXml . parseXml) (execute y () (DESC t []))
+    where parseXml xml = case (xmlParse "yql xml" xml)
+                         of Document _ _ docRoot _ -> CElem docRoot (posInNewCxt "yql xml" Nothing)
+  
   -- | Given an statement executes the query on yql. This function is
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
-  execute :: (Functor m,MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
-  execute y l stmt = do mkRequest  <- fmap before (resolve l stmt)
-                        mkResponse <- fmap after (resolve l stmt)
-                        mkOutput   <- fmap transform (resolve l stmt)
-                        response   <- lift (runOAuth (serviceRequest PLAINTEXT (Just "yahooapis.com") (mkRequest yqlRequest)))
-                        asString (mkResponse response) >>= return . mkOutput
+  execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
+  execute y l stmt = do secLevel    <- securityLevel
+                        mkRequest   <- fmap before (resolve l stmt)
+                        mkResponse  <- fmap after (resolve l stmt)
+                        mkOutput    <- fmap transform (resolve l stmt)
+                        response    <- lift (runOAuth (serviceRequest PLAINTEXT 
+                                                                      (Just "yahooapis.com") 
+                                                                      (mkRequest $ yqlRequest secLevel)))
+                        fmap mkOutput (asString (mkResponse response))
                         
-    where yqlRequest = ReqHttp { version    = Http11
-                               , ssl        = False
-                               , host       = endpoint y
-                               , port       = 80
-                               , method     = GET
-                               , reqHeaders = empty
-                               , pathComps  = ["","v1","public","yql"]
-                               , qString    = fromList [("q",show preparedStmt)]
-                               , reqPayload = B.empty
-                               }
+    where yqlRequest s = ReqHttp { version    = Http11
+                                 , ssl        = True
+                                 , host       = endpoint y
+                                 , port       = 443
+                                 , method     = GET
+                                 , reqHeaders = empty
+                                 , pathComps  = yqlPath
+                                 , qString    = fromList [("q",show preparedStmt)]
+                                 , reqPayload = B.empty
+                                 }
+            where yqlPath | s `elem` [User,App] = ["","v1","yql"]
+                          | otherwise           = ["","v1","public","yql"]
+          
+          securityLevel = case stmt
+                          of _ | desc stmt    -> return Any
+                               | usingMe stmt -> return User        
+                               | otherwise    -> fmap (\(Table _ s) -> s) (executeDesc y (head $ tables stmt))
           
           preparedStmt = case stmt
                          of (SELECT c t w f) -> SELECT c t w (filter remote f)
-                            _                -> stmt
+                            (DESC t _)       -> DESC t []
           
           asString rsp | status rsp `elem` [200..299] = return (B.unpack . rspPayload $ rsp)
                        | otherwise                    = fail (B.unpack . rspPayload $ rsp)

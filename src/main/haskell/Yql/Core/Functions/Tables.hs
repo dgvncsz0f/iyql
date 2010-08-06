@@ -26,7 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Yql.Core.Functions.Tables
-       ( tables
+       ( tablesTransform
        ) where
 
 import Yql.Core.Stmt
@@ -49,8 +49,8 @@ data Cell = Complex Table
           | Scalar String
                deriving (Show)
 
-tables :: [(String,Value)] -> Maybe Exec
-tables _ = Just (Transform (myRender . xml2table))
+tablesTransform :: [(String,Value)] -> Maybe Exec
+tablesTransform _ = Just (Transform (myRender . xml2table))
   where myRender = renderStyle (Style LeftMode 10000 0)
 
 norm :: Table -> Table
@@ -104,7 +104,7 @@ xml2table :: String -> Doc
 xml2table xml = showTable $ unpack (build (xmlRows results))
   where Document _ _ docRoot _ = xmlParse "yql xml" xml
         
-        results = xtract id "//results/*" (CElem docRoot (posInNewCxt "filename" Nothing))
+        results = xtract id "//results/*" (CElem docRoot (posInNewCxt "yql xml" Nothing))
         
         xmlRows tag = map (map xmlCols . filter elemNode . childNodes) tag
         

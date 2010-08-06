@@ -97,6 +97,15 @@ test13 = testCase "resolve generates error when function is not found" $
          do ok (isNothing $ resolve () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
             ok (isJust $ resolve () (SELECT ["*"] "foobar" Nothing []))
 
+test14 = testCase "show desc produces correct result" $ 
+         do eq ("DESC foobar;") (show $ DESC "foobar" [])
+            eq ("DESC a;") (show $ DESC "a" [])
+            eq ("DESC a | .yql();") (show $ DESC "a" [Local "yql" []])
+
+test15 = testCase "read desc statements produces correct type" $ 
+         do eq (DESC "foobar" []) (read "desc foobar;")
+            eq (DESC "foobar" [Local "tables" []]) (read "desc foobar | .tables();")
+
 suite :: [Test]
 suite = [ testGroup "Stmt.hs" [ test0
                               , test1
@@ -111,5 +120,8 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test10
                               , test11
                               , test12
+                              , test13
+                              , test14
+                              , test15
                               ]
         ]

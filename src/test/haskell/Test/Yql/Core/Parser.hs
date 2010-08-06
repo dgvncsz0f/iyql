@@ -51,6 +51,9 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test10
                                 , test11
                                 , test12
+                                , test13
+                                , test14
+                                , test15
                                 ]
         ]
 
@@ -102,6 +105,15 @@ test11 = testCase "local functions should not precede any remote functions" $
 test12 = testCase "local and remote functions in the same query" $ 
          do eq "SELECT * FROM iyql | foo() | .bar();" (runYqlParser_ "select * from iyql | foo() | .bar();")
 
+test13 = testCase "select using custom offset/limit" $ 
+         do eq "SELECT * FROM iyql (0,10);" (runYqlParser_ "select * from iyql(0,10);")
+            
+test14 = testCase "desc statements" $ 
+         do eq "DESC iyql;" (runYqlParser_ "desc iyql;")
+
+test15 = testCase "desc statements allow only local filters" $ 
+         do eq "parse error" (runYqlParser_ "desc iyql | foobar();")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -116,7 +128,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onUpdate     = undefined
                              , onInsert     = undefined
                              , onDelete     = undefined
-                             , onDesc       = undefined
+                             , onDesc       = mkDesc
                              , onEqExpr     = mkEqExpr
                              , onInExpr     = mkInExpr
                              , onAndExpr    = mkAndExpr
@@ -128,6 +140,8 @@ stringBuilder = ParserEvents { onIdentifier = id
         
         mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
         mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        
+        mkDesc t f = "DESC " ++ t ++ showFunction f ++ ";"
         
         mkFunc p n as = p ++ n ++ "("++ intercalate "," (map showArg as) ++")"
           where showArg (k,v) = k ++"="++ v

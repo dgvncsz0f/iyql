@@ -30,6 +30,7 @@ module Test.Yql.Core.Backend where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
+import Yql.Core.Stmt
 import Yql.Core.Backend
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Response
@@ -44,16 +45,21 @@ test0 = testCase "test endpoint returns the string defined" $
 test1 = testCase "test application returns the app defined" $ 
         eq (Application "foo" "bar" OOB) (app $ YqlBackend (Application "foo" "bar" OOB) undefined)
 
-test2 = testCase "test execute_ with `select title,abstract from search.web where query=\"iyql\"'" $ 
+test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $ 
         do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined undefined) () (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False
 
+test3 = testCase "test executeDesc with search.web" $ 
+        do resp <- unCurlM $ unOutputT $ executeDesc (YqlBackend undefined undefined) "search.web"
+           ok $ (Right $ Table "search.web" Any) == resp
+
 suite :: [Test]
 suite = [ testGroup "Engine.hs" [ test0
                                 , test1
                                 , test2
+                                , test3
                                 ]
         ]
 

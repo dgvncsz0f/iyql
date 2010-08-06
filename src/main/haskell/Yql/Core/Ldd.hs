@@ -38,5 +38,5 @@ ldd :: [(String,[(String,Value)] -> Maybe Exec)]
 ldd = [ ("request",yqlRequest)
       , ("json",const (yqlRequest [("format",TxtValue "json")]))
       , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
-      , ("tables",tables)
+      , ("tables",tablesTransform)
       ]

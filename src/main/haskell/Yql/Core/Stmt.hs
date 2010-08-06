@@ -30,6 +30,8 @@ module Yql.Core.Stmt
        ( -- * Types
          Value(..)
        , Where(..)
+       , Description(..)
+       , Security(..)
        , Statement(..)
        , Function(..)
        , Exec(..)
@@ -37,11 +39,16 @@ module Yql.Core.Stmt
        , Linker(..)
          -- * Query
        , select
+       , desc
        , local
        , remote
        , functions
+       , usingMe
+       , tables
          -- * Parsing
        , builder 
+       , readStmt
+       , readDescXml
          -- * Priting
        , showStmt
        , showFunc
@@ -54,10 +61,14 @@ module Yql.Core.Stmt
 
 import Yql.Core.Parser
 import Data.List
+import Data.Char
 import Data.Maybe
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Control.Monad
+import Text.XML.HaXml.Types (Content)
+import Text.XML.HaXml.Xtract.Parse
+import Text.XML.HaXml.Verbatim
 
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
@@ -83,6 +94,7 @@ data Function = Local { name :: String
 
 -- | The different statements supported.
 data Statement = SELECT [String] String (Maybe Where) [Function]
+               | DESC String [Function]
                deriving (Eq)
 
 -- | Local functions that may change a given yql query
@@ -97,6 +109,17 @@ data Pipeline = ExecTransform { before    :: Request -> Request
                               , after     :: Response -> Response
                               , transform :: String -> String
                               }
+
+-- | The different security level tables may request
+data Security = User    -- ^ Requires 3-legged oauth to perform the request
+              | App     -- ^ Requires 2-legged oauth to perform the request
+              | Any     -- ^ No authentication is required
+              deriving (Eq)
+
+-- | The description of a table, usually the result of a desc <table>
+-- command.
+data Description = Table String Security
+                 deriving (Eq)
 
 -- | Database of exec types.
 class Linker r where
@@ -129,7 +152,7 @@ builder = ParserEvents { onIdentifier = id
                        , onUpdate     = undefined
                        , onDelete     = undefined
                        , onInsert     = undefined
-                       , onDesc       = undefined
+                       , onDesc       = DESC
                        , onEqExpr     = OpEq
                        , onInExpr     = OpIn
                        , onAndExpr    = OpAnd
@@ -141,28 +164,74 @@ builder = ParserEvents { onIdentifier = id
 -- | Test if the statement is a select statement
 select :: Statement -> Bool
 select (SELECT _ _ _ _) = True
+select _                = False
 
+-- | Test if the statment is a desc statament
+desc :: Statement -> Bool
+desc (DESC _ _) = True
+desc _          = False
+
+-- | Test if the function is a local function
 local :: Function -> Bool
 local (Local _ _) = True
 local _           = False
 
+-- | Test if the function is a remote function
 remote :: Function -> Bool
 remote (Remote _ _) = True
 remote _            = False
 
+-- | Extracts all tables in use in the statement
+tables :: Statement -> [String]
+tables (SELECT _ t _ _) = [t]
+tables (DESC t _)       = [t]
+
+-- | Test whether or not a query contains the ME keyword in the where
+-- clause
+usingMe :: Statement -> Bool
+usingMe stmt = case stmt
+               of (SELECT _ _ w _) -> Just True == fmap findMe w
+                  (DESC _ _)       -> False
+  where findMe (_ `OpEq` v)    = v == MeValue
+        findMe (_ `OpIn` vs)   = any (==MeValue) vs
+        findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
+        findMe (w0 `OpOr` w1)  = findMe w0 || findMe w1
+
+
 functions :: Statement -> [Function]
 functions (SELECT _ _ _ f) = f
+functions (DESC _ f)       = f
 
 showStmt :: Statement -> String
-showStmt(SELECT cols table whre func) = "SELECT " 
-                                        ++ intercalate "," cols
-                                        ++ " FROM "
-                                        ++ table
-                                        ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
-                                        ++ funcString
-                                        ++ ";"
-  where funcString | null func = ""
-                   | otherwise = " | " ++ intercalate " | " (map show func)
+showStmt stmt = case stmt
+                of DESC table func             -> "DESC " 
+                                                  ++ table 
+                                                  ++ funcString func
+                                                  ++ ";"
+                   SELECT cols table whre func -> "SELECT " 
+                                                   ++ intercalate "," cols
+                                                   ++ " FROM "
+                                                   ++ table
+                                                   ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
+                                                   ++ funcString func
+                                                   ++ ";"
+  where funcString func | null func = ""
+                        | otherwise = " | " ++ intercalate " | " (map show func)
+
+readStmt :: String -> Either ParseError Statement
+readStmt = flip parseYql builder
+
+readDescXml :: Content i -> Description
+readDescXml xml = case (map toLower securityAttr)
+                  of "user" -> Table nameAttr User
+                     "app"  -> Table nameAttr App
+                     _      -> Table nameAttr Any
+                  
+  where attr k = concatMap verbatim . xtract id ("//results/table/@"++k) $ xml
+        
+        securityAttr = attr "security"
+        
+        nameAttr = attr "name"
 
 showFunc :: Function -> String
 showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"
@@ -186,7 +255,7 @@ showValue (TxtValue v) = ("\""++ escape v ++"\"")
         escape []       = []
 
 instance Read Statement where
-  readsPrec _ input = case (parseYql input builder)
+  readsPrec _ input = case (readStmt input)
                       of Left  _    -> []
                          Right stmt -> [(stmt,"")]
 

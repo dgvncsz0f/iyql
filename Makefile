@@ -12,8 +12,11 @@ TESTPRG_SRC=src/test/haskell/all_tests.hs
 TESTPRG_OBJ=$(addsuffix .o,$(basename $(TESTPRG_SRC)))
 TESTPRG=$(basename $(TESTPRG_SRC))
 
-HC=/usr/bin/ghc
-HCFLAGS=
+HC      = /usr/bin/ghc
+INSTALL = /usr/bin/install
+
+HCFLAGS =
+PREFIX  = /usr/local
 
 PREFIX=/usr/local
 
@@ -26,7 +29,7 @@ compile: $(MAINOBJ) $(MAINPRG)
 
 .PHONY: install
 install: $(MAINPRG)
-	install -m 0755 $(MAINPRG) $(PREFIX)/bin
+	$(INSTALL) -m 0755 $(MAINPRG) $(PREFIX)/bin
 
 .PHONY: test
 test: compile $(TESTPRG)
