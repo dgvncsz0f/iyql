@@ -38,7 +38,8 @@ module Yql.Core.Backend
 
 import Control.Monad
 import Control.Monad.Trans
-import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.ByteString.Lazy as B
+import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
@@ -106,8 +107,8 @@ class Yql y where
                          of (SELECT c t w f) -> SELECT c t w (filter remote f)
                             (DESC t _)       -> DESC t []
           
-          asString rsp | status rsp `elem` [200..299] = return (B.unpack . rspPayload $ rsp)
-                       | otherwise                    = fail (B.unpack . rspPayload $ rsp)
+          asString rsp | status rsp `elem` [200..299] = return (U.decode . B.unpack . rspPayload $ rsp)
+                       | otherwise                    = fail (U.decode . B.unpack . rspPayload $ rsp)
 
 instance Yql (Backend m) where
   endpoint (YqlBackend _ _) = "query.yahooapis.com"
