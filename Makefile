@@ -3,7 +3,8 @@ SRCROOT=$(shell pwd)
 MAINSRC=$(wildcard src/main/haskell/Yql/Core/*.hs \
                    src/main/haskell/Yql/Core/Functions/*.hs \
                    src/main/haskell/Yql/*.hs \
-                   src/main/haskell/Yql/UI/*.hs)
+                   src/main/haskell/Yql/UI/*.hs \
+                   src/main/haskell/Yql/UI/CLI/*.hs)
 MAINOBJ=$(addsuffix .o,$(basename $(MAINSRC)))
 MAINPRG_SRC=src/main/haskell/iyql.hs
 MAINPRG_OBJ=$(wildcard .o,$(basename $(MAINPRG_SRC)))
@@ -12,7 +13,9 @@ MAINPRG=$(basename $(MAINPRG_SRC))
 TESTSRC=$(wildcard src/test/haskell/Test/*.hs \
                    src/test/haskell/Test/Yql/Core/*.hs \
                    src/test/haskell/Test/Yql/Core/Functions/*.hs \
-                   src/test/haskell/Test/Yql/*.hs src/test/haskell/Test/Yql/UI/*.hs)
+                   src/test/haskell/Test/Yql/*.hs \
+                   src/test/haskell/Test/Yql/UI/*.hs \
+                   src/test/haskell/Test/Yql/UI/CLI/*.hs)
 TESTOBJ=$(addsuffix .o,$(basename $(TESTSRC)))
 TESTPRG_SRC=src/test/haskell/all_tests.hs
 TESTPRG_OBJ=$(addsuffix .o,$(basename $(TESTPRG_SRC)))

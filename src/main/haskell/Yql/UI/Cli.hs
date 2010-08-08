@@ -27,15 +27,17 @@
 
 module Yql.UI.Cli where
 
-import Data.Char
+import System
 import System.Console.Haskeline
 import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
+import Data.Char
 import Yql.Core.Backend
 import Yql.Core.Parser
 import Yql.Core.Stmt
 import Yql.Core.Ldd
-import Yql.Version
+import qualified Yql.Version as V
+import Yql.UI.CLI.Options
 
 eol :: String -> Bool
 eol (x:xs) | x==';'    = all isSpace xs
@@ -46,7 +48,7 @@ empty :: String -> Bool
 empty = all isSpace
 
 outputVersion :: InputT IO ()
-outputVersion = outputStrLn $ "iyql version " ++ version
+outputVersion = outputStrLn $ "iyql version " ++ V.version
 
 outputLicense :: InputT IO ()
 outputLicense = outputStrLn "This is free software. Enter .license to read it"
@@ -58,30 +60,40 @@ outputHelp = do outputStrLn "Enter .help for instructions"
 cont :: String -> InputT IO String
 cont prefix = do minput <- getInputLine " ...> "
                  case minput
-                   of Nothing                -> return prefix
-                      Just input | eol input -> return (prefix ++" "++ input)
-                                 | otherwise -> cont (prefix ++" "++ input)
+                   of Nothing       -> return prefix
+                      Just input 
+                        | eol input -> return (prefix ++" "++ input)
+                        | otherwise -> cont (prefix ++" "++ input)
+
+execYql :: Yql y => y -> String -> InputT IO String
+execYql y input = case (parseYql input builder)
+                  of Left err   -> return (show err)
+                     Right stmt -> liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= return . either id id
 
 loop :: Yql y => y -> InputT IO ()
 loop y = do minput <- getInputLine "iyql> "
             case minput
-              of Nothing      -> return ()
-                 Just ":quit" -> return ()
-                 Just input | empty input -> loop y
-                            | eol input   -> do execYql input
-                                                loop y
-                            | otherwise   -> do (cont input >>= execYql)
-                                                loop y
+              of Nothing         -> return ()
+                 Just ":quit"    -> return ()
+                 Just input 
+                   | empty input -> loop y
+                   | eol input   -> do (execYql y input >>= outputStrLn)
+                                       loop y
+                   | otherwise   -> do (cont input >>= execYql y >>= outputStrLn)
+                                       loop y
 
-  where execYql input = case (parseYql input builder)
-                        of Left err 
-                             | empty input -> loop y
-                             | otherwise   -> do outputStrLn (show err)
-                                                 outputStrLn ""
-                           Right stmt      -> liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= outputStrLn . either id id
 
 iyql :: Yql y => y -> InputT IO ()
-iyql y = do outputVersion
-            outputLicense
-            outputHelp
-            loop y
+iyql y = do argv <- liftIO getArgs
+            case (getoptions argv)
+              of Left errors   -> outputStrLn errors
+                 Right actions -> runActions argv actions
+  where runActions argv opts 
+          | wantVersion opts  = outputVersion
+          | wantHelp opts     = outputStrLn $ usage argv
+          | wantExecStmt opts = let ExecStmt stmt = head . filter execStmt $ opts
+                                in execYql y stmt >>= outputStrLn
+          | otherwise         = do outputVersion
+                                   outputLicense
+                                   outputHelp
+                                   loop y
