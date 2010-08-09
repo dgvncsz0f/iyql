@@ -111,7 +111,10 @@ data Security = User    -- ^ Requires 3-legged oauth to perform the request
 
 -- | The description of a table, usually the result of a desc <table>
 -- command.
-data Description = Table String Security
+data Description = Table { table    :: String
+                         , security :: Security
+                         , https    :: Bool
+                         }
                  deriving (Eq)
 
 -- | Database of exec types.
@@ -226,15 +229,17 @@ readStmt = flip parseYql builder
 
 readDescXml :: XML -> Description
 readDescXml xml = case (map toLower securityAttr)
-                  of "user" -> Table nameAttr User
-                     "app"  -> Table nameAttr App
-                     _      -> Table nameAttr Any
+                  of "user" -> Table nameAttr User https
+                     "app"  -> Table nameAttr App https
+                     _      -> Table nameAttr Any https
                   
   where attr k = join (fmap (attribute k) (findElement "table" xml))
         
         Just securityAttr = attr "security"
         
         Just nameAttr = attr "name"
+        
+        https = Just "true" == attr "https"
 
 showFunc :: Function -> String
 showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"
@@ -273,6 +278,12 @@ instance Show Where where
 
 instance Show Value where
   showsPrec _ = showString . showValue
+
+instance Ord Security where
+  compare Any _    = LT
+  compare App Any  = GT
+  compare App User = LT
+  compare User _   = GT
 
 instance Linker () where
   link _ _ _ = Nothing

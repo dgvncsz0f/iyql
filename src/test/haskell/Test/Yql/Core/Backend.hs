@@ -50,7 +50,7 @@ test2 = testCase "test execute with `select title,abstract from search.web where
 
 test3 = testCase "test executeDesc with search.web" $ 
         do resp <- unCurlM $ unOutputT $ executeDesc (YqlBackend undefined (const $ return ()) (return Nothing)) "search.web"
-           ok $ (Right $ Table "search.web" Any) == resp
+           ok $ (Right $ Table "search.web" Any False) == resp
 
 suite :: [Test]
 suite = [ testGroup "Engine.hs" [ test0

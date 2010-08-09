@@ -81,31 +81,37 @@ class Yql y where
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
   execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
-  execute y l stmt = do secLevel    <- securityLevel
+  execute y l stmt = do description <- descTable
                         mkRequest   <- fmap execBefore (resolve l stmt)
                         mkResponse  <- fmap execAfter (resolve l stmt)
                         mkOutput    <- fmap execTransform (resolve l stmt)
-                        response    <- lift (runOAuth $ do credentials y secLevel
-                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ yqlRequest secLevel))
+                        response    <- lift (runOAuth $ do credentials y (security description)
+                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ yqlRequest description))
                         return $ mkOutput (toString (mkResponse response))
                         
-    where yqlRequest s = ReqHttp { version    = Http11
-                                 , ssl        = False
+    where yqlRequest d = ReqHttp { version    = Http11
+                                 , ssl        = https d
                                  , host       = endpoint y
-                                 , port       = 80
+                                 , port       = portNumber
                                  , method     = GET
                                  , reqHeaders = empty
                                  , pathComps  = yqlPath
                                  , qString    = fromList [("q",show preparedStmt)]
                                  , reqPayload = B.empty
                                  }
-            where yqlPath | s `elem` [User,App] = ["","v1","yql"]
-                          | otherwise           = ["","v1","public","yql"]
+            where yqlPath 
+                    | security d `elem` [User,App] = ["","v1","yql"]
+                    | otherwise                    = ["","v1","public","yql"]
+                  
+                  portNumber 
+                    | https d   = 443
+                    | otherwise = 80
           
-          securityLevel = case stmt
-                          of _ | desc stmt    -> return Any
-                               | usingMe stmt -> return User
-                               | otherwise    -> fmap (\(Table _ s) -> s) (executeDesc y (head $ tables stmt))
+          descTable = case stmt
+                      of _ | desc stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
+                           | usingMe stmt -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
+                           | otherwise    -> fmap (foldr1 joinDesc) (mapM (executeDesc y) (tables stmt))
+            where joinDesc (Table _ sec0 ssl0) (Table _ sec1 ssl1) = Table "<<many>>" (max sec0 sec1) (ssl0 || ssl1)
           
           preparedStmt = case stmt
                          of (SELECT c t w f) -> SELECT c t w (filter remote f)
