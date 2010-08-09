@@ -1,9 +1,9 @@
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Functions.Tables 
+module Yql.Core.Functions.Tables
        ( tablesTransform
        ) where
 
@@ -112,11 +112,11 @@ tablesTransform _ = Just (Transform (render . xml2doc))
 norm :: Table -> Table
 norm (Lines cols) = Lines (map fixColumn cols)
   where maxHeight = maximum (map (length . snd . unColumn) cols)
-        
+
         fixHeight xs = (map dig xs) ++ replicate (maxHeight - (length xs)) (Scalar "")
           where dig (Complex t) = Complex (norm t)
                 dig scalar      = scalar
-        
+
         fixColumn (Column (h,cs)) = Column (h,fixHeight cs)
 
 showCell :: Cell -> (Int,Doc)
@@ -145,19 +145,19 @@ showTable = cat . map (showTable_ 1) . transpose . map showColumn . rows
 xml2doc :: String -> Doc
 xml2doc xml = showTable . xml2table $ results
  where Just doc = xmlParse xml
-       
+
        Just results = fmap (childNodes) (findElement "results" doc)
 
 xml2table :: [XML] -> Table
 xml2table = unpack . build . xmlRows
   where xmlRows tag = map (map xmlCols . filter element . childNodes) tag
-        
+
         xmlCols tag | simple    = (tagName tag,[Scalar (verbatim tag)])
-                    | otherwise = (tagName tag,[Complex (xml2table [tag])]) 
+                    | otherwise = (tagName tag,[Complex (xml2table [tag])])
           where simple = all pcdata (childNodes tag)
-        
+
         build = foldr (M.unionWith (++)) M.empty . map (M.fromListWith (++))
-        
+
         unpack = norm . Lines . map Column . M.toList
 
 instance Show Doc where

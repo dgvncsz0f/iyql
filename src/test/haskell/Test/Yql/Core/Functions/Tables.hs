@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -13,7 +13,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -36,7 +36,7 @@ import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
-test0 = testCase ".tables() for `simple' results" $ 
+test0 = testCase ".tables() for `simple' results" $
         do eq (Just tabular) (fmap (($ xml) . execTransform) (tablesTransform []))
   where tabular = init . unlines $ [ "|*bar*|*foo*|"
                                    , "|bar  |foo  |"
@@ -55,7 +55,7 @@ test0 = testCase ".tables() for `simple' results" $
                       , "</results>"
                       ]
 
-test1 = testCase ".tables() for `complex' results" $ 
+test1 = testCase ".tables() for `complex' results" $
         do eq (Just tabular) (fmap (($ xml) . execTransform) (tablesTransform []))
   where tabular = init . unlines $ [ "|*bar*                          |*foo*                |"
                                    , "|bar                            ||*field_a*|*field_b*|"
@@ -63,7 +63,7 @@ test1 = testCase ".tables() for `complex' results" $
                                    , "||*field_a*|*field_b*|*field_c*|"
                                    , " |field_a  |field_b  |field_c  ||foo                  |"
                                    ]
-        
+
         xml = unlines [ "<?xml version=\"1.0\"?>"
                       , "<results>"
                       , "<row>"
@@ -75,16 +75,16 @@ test1 = testCase ".tables() for `complex' results" $
                       , "<bar><field_a>field_a</field_a><field_b>field_b</field_b><field_c>field_c</field_c></bar>"
                       , "</row>"
                       , "</results>"
-                      ] 
+                      ]
 
-test2 = testCase ".tables() add missing rows" $ 
+test2 = testCase ".tables() add missing rows" $
         do eq (Just tabular) (fmap (($ xml) . execTransform) (tablesTransform []))
   where tabular = init . unlines $ [ "|*bar*|*foo*|"
                                    , "|0    |0    |"
                                    , "|1    |     |"
                                    , "|2    |     |"
                                    ]
-        
+
         xml = unlines [ "<?xml version=\"1.0\"?>"
                       , "<results>"
                       , "<row>"
@@ -100,12 +100,12 @@ test2 = testCase ".tables() add missing rows" $
                       , "</results>"
                       ]
 
-test3 = testCase ".tables() fill columns with spaces" $ 
+test3 = testCase ".tables() fill columns with spaces" $
         do eq (Just tabular) (fmap (($ xml) . execTransform) (tablesTransform []))
   where tabular = init . unlines $ [ "|*bar*      |*foo*     |"
                                    , "|0          |1         |"
                                    , "|fooooooobar|foooooobar|"
-                                   ] 
+                                   ]
         xml = unlines [ "<?xml version=\"1.0\"?>"
                       , "<results>"
                       , "<row>"
@@ -117,7 +117,7 @@ test3 = testCase ".tables() fill columns with spaces" $
                       , "<foo>foooooobar</foo>"
                       , "</row>"
                       , "</results>"
-                      ]        
+                      ]
 
 suite :: [Test]
 suite = [ testGroup "Tables.hs" [ test0

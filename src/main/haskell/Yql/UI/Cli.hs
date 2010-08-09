@@ -1,9 +1,9 @@
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -60,7 +60,7 @@ cont :: String -> InputT IO String
 cont prefix = do minput <- getInputLine " ...> "
                  case minput
                    of Nothing       -> return prefix
-                      Just input 
+                      Just input
                         | eol input -> return (prefix ++" "++ input)
                         | otherwise -> cont (prefix ++" "++ input)
 
@@ -74,7 +74,7 @@ loop y = do minput <- getInputLine "iyql> "
             case minput
               of Nothing         -> return ()
                  Just ":quit"    -> return ()
-                 Just input 
+                 Just input
                    | empty input -> loop y
                    | eol input   -> do (execYql y input >>= outputStrLn)
                                        loop y
@@ -87,7 +87,7 @@ iyql y = do argv <- liftIO getArgs
             case (getoptions argv)
               of Left errors   -> outputStrLn errors
                  Right actions -> runActions argv actions
-  where runActions argv opts 
+  where runActions argv opts
           | wantVersion opts  = outputVersion
           | wantHelp opts     = outputStrLn $ usage argv
           | wantExecStmt opts = let ExecStmt stmt = head . filter execStmt $ opts

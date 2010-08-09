@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -13,7 +13,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -57,7 +57,7 @@ suite = [ testGroup "Parser.hs" [ test0
                                 ]
         ]
 
-test0 = testCase "select * without where" $ 
+test0 = testCase "select * without where" $
         eq "SELECT * FROM iyql;" (runYqlParser_ "select * from iyql;")
 
 test1 = testCase "select foo,bar without where" $
@@ -72,7 +72,7 @@ test3 = testCase "select * with single where clause [num]" $
 test4 = testCase "select * with multiple and/or" $
         eq "SELECT * FROM iyql WHERE foo=\"bar\" AND bar=\"foo\" OR id=me;" (runYqlParser_ "select * from iyql where foo=\"bar\" and bar=\"foo\" or id=me;")
 
-test5 = testCase "select * with `in' clause" $ 
+test5 = testCase "select * with `in' clause" $
         eq "SELECT * FROM iyql WHERE foo IN (\"b\",\"a\",\"r\",3,\".\",1);" (runYqlParser_ "select * from iyql where foo in (\"b\",\"a\",\"r\",3,\".\",1);")
 
 test6 = testCase "select * with functions" $
@@ -83,7 +83,7 @@ test7 = testCase "select * using local filters [like]" $
         do eq "SELECT * FROM iyql WHERE foo LIKE \"baz\";" (runYqlParser_ "select * from iyql where foo like \"baz\";")
            eq "SELECT * FROM iyql WHERE foo NOT LIKE \"baz\";" (runYqlParser_ "select * from iyql where foo not like \"baz\";")
 
-test8 = testCase "select * using local filters [matches]" $  
+test8 = testCase "select * using local filters [matches]" $
         do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo matches \".*.bar*\";")
            eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo not matches \"bar\";")
 
@@ -99,19 +99,19 @@ test10 = testCase "select with where clause with different precedence" $
          do eq "SELECT * FROM iyql WHERE (foo=2 and bar=3) or (foo=5 and bar=7);" (runYqlParser_ "select * from iyql where (foo=2 and bar=3) or (foo=5 and bar=7);")
             eq "SELECT * FROM iyql WHERE (foo=2 or bar=3) and (foo=4 or bar=7);" (runYqlParser_ "select * from iyql where (foo=2 or bar=3) and (foo=5 or bar=7);")
 
-test11 = testCase "local functions should not precede any remote functions" $ 
+test11 = testCase "local functions should not precede any remote functions" $
          do eq "parse error" (runYqlParser "select * from iyql | .bar() | foo();")
 
-test12 = testCase "local and remote functions in the same query" $ 
+test12 = testCase "local and remote functions in the same query" $
          do eq "SELECT * FROM iyql | foo() | .bar();" (runYqlParser_ "select * from iyql | foo() | .bar();")
 
-test13 = testCase "select using custom offset/limit" $ 
+test13 = testCase "select using custom offset/limit" $
          do eq "SELECT * FROM iyql (0,10);" (runYqlParser_ "select * from iyql(0,10);")
-            
-test14 = testCase "desc statements" $ 
+
+test14 = testCase "desc statements" $
          do eq "DESC iyql;" (runYqlParser_ "desc iyql;")
 
-test15 = testCase "desc statements allow only local filters" $ 
+test15 = testCase "desc statements allow only local filters" $
          do eq "parse error" (runYqlParser_ "desc iyql | foobar();")
 
 newtype LexerToken = LexerToken (String,TokenT)
@@ -137,12 +137,12 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onRemoteFunc = mkFunc ""
                              }
   where mkValue v = "\"" ++ v ++ "\""
-        
+
         mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
         mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
-        
+
         mkDesc t f = "DESC " ++ t ++ showFunction f ++ ";"
-        
+
         mkFunc p n as = p ++ n ++ "("++ intercalate "," (map showArg as) ++")"
           where showArg (k,v) = k ++"="++ v
 

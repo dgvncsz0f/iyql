@@ -1,9 +1,9 @@
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -40,7 +40,7 @@ main = do cfg <- fmap settings getHomeDirectory
                                  , historyFile    = Just (joinPath [home,".iyql_history"])
                                  , autoAddHistory = False
                                  }
-        
+
         -- TODO:read consumer_key/consumer_sec
         -- TODO:sessionSave and sessionLoad
         backend = YqlBackend (Application "TODO:ckey" "TODO:csec" OOB) (const $ return ()) (return Nothing)

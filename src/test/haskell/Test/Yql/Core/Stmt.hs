@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -13,7 +13,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -33,11 +33,12 @@ module Test.Yql.Core.Stmt where
 import Data.Maybe
 import Yql.Core.Stmt
 import Yql.Xml
+import Control.Monad
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
-test0 = testCase "show select * without where produces correct stmt" $ 
+test0 = testCase "show select * without where produces correct stmt" $
         eq "SELECT * FROM iyql;" (show $ SELECT ["*"] "iyql" Nothing [])
 
 test1 = testCase "show select foo,bar without where produces correct stmt" $
@@ -45,8 +46,8 @@ test1 = testCase "show select foo,bar without where produces correct stmt" $
 
 test2 = testCase "show select foo with single where clause [txt]" $
         eq "SELECT foo FROM iyql WHERE foo=\"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [])
-        
-test3 = testCase "show select pi with single where clause [num]" $ 
+
+test3 = testCase "show select pi with single where clause [num]" $
         eq "SELECT pi FROM iyql WHERE pi=3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") [])
 
 test4 = testCase "show select foo with single IN clause" $
@@ -62,11 +63,11 @@ test7 = testCase "show select escapes strings" $
         do eq "SELECT * FROM iyql WHERE foo=\"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") [])
            eq "SELECT * FROM iyql WHERE foo=\"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") [])
 
-test8 = testCase "show select with remote functions" $ 
+test8 = testCase "show select with remote functions" $
         do eq "SELECT * FROM iyql | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
            eq "SELECT * FROM iyql WHERE foo=\"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
-test9 = testCase "show select with local functions" $ 
+test9 = testCase "show select with local functions" $
         do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
            eq "SELECT * FROM iyql WHERE foo=\"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
@@ -98,16 +99,16 @@ test13 = testCase "resolve generates error when function is not found" $
          do ok (isNothing $ resolve () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
             ok (isJust $ resolve () (SELECT ["*"] "foobar" Nothing []))
 
-test14 = testCase "show desc produces correct result" $ 
+test14 = testCase "show desc produces correct result" $
          do eq ("DESC foobar;") (show $ DESC "foobar" [])
             eq ("DESC a;") (show $ DESC "a" [])
             eq ("DESC a | .yql();") (show $ DESC "a" [Local "yql" []])
 
-test15 = testCase "read desc statements produces correct type" $ 
+test15 = testCase "read desc statements produces correct type" $
          do eq (DESC "foobar" []) (read "desc foobar;")
             eq (DESC "foobar" [Local "tables" []]) (read "desc foobar | .tables();")
 
-test16 = testCase "test ord implementation of security level [User > App > Any]" $ 
+test16 = testCase "test ord implementation of security level [User > App > Any]" $
          do ok (Any < App)
             ok (Any < User)
             ok (App < User)
@@ -117,11 +118,11 @@ test16 = testCase "test ord implementation of security level [User > App > Any]"
             ok (User /= App)
             ok (User /= Any)
 
-test17 = testCase "test readDescXml extracts attributes" $ 
-         do ok $ (Just (Table "meme.info" Any False)) == (fmap readDescXml (xmlParse xml0))
-            ok $ (Just (Table "meme.info" App False)) == (fmap readDescXml (xmlParse xml1))
-            ok $ (Just (Table "meme.info" User False)) == (fmap readDescXml (xmlParse xml2))
-            ok $ (Just (Table "meme.info" Any True)) == (fmap readDescXml (xmlParse xml3))
+test17 = testCase "test readDescXml extracts attributes" $
+         do ok $ (Just (Table "meme.info" Any False)) == (join $ fmap readDescXml (xmlParse xml0))
+            ok $ (Just (Table "meme.info" App False)) == (join $ fmap readDescXml (xmlParse xml1))
+            ok $ (Just (Table "meme.info" User False)) == (join $ fmap readDescXml (xmlParse xml2))
+            ok $ (Just (Table "meme.info" Any True)) == (join $ fmap readDescXml (xmlParse xml3))
   where xml0 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><query xmlns:yahoo=\"http://www.yahooapis.com/v1/base.rng\"    yahoo:count=\"1\" yahoo:created=\"2010-08-09T04:08:39Z\" yahoo:lang=\"en-US\">    <results>        <table name=\"meme.info\" security=\"ANY\">            <meta>                <author>Yahoo! Inc.</author>                <documentationURL>http://developer.yahoo.com/meme/</documentationURL>                <sampleQuery>SELECT * FROM meme.info WHERE owner_guid=me</sampleQuery>            </meta>            <request>                <select>                    <key name=\"owner_guid\" type=\"xs:string\"/>                    <key name=\"name\" type=\"xs:string\"/>                </select>            </request>        </table>    </results></query>"
         xml1 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><query xmlns:yahoo=\"http://www.yahooapis.com/v1/base.rng\"    yahoo:count=\"1\" yahoo:created=\"2010-08-09T04:08:39Z\" yahoo:lang=\"en-US\">    <results>        <table name=\"meme.info\" security=\"APP\">            <meta>                <author>Yahoo! Inc.</author>                <documentationURL>http://developer.yahoo.com/meme/</documentationURL>                <sampleQuery>SELECT * FROM meme.info WHERE owner_guid=me</sampleQuery>            </meta>            <request>                <select>                    <key name=\"owner_guid\" type=\"xs:string\"/>                    <key name=\"name\" type=\"xs:string\"/>                </select>            </request>        </table>    </results></query>"
         xml2 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><query xmlns:yahoo=\"http://www.yahooapis.com/v1/base.rng\"    yahoo:count=\"1\" yahoo:created=\"2010-08-09T04:08:39Z\" yahoo:lang=\"en-US\">    <results>        <table name=\"meme.info\" security=\"USER\">            <meta>                <author>Yahoo! Inc.</author>                <documentationURL>http://developer.yahoo.com/meme/</documentationURL>                <sampleQuery>SELECT * FROM meme.info WHERE owner_guid=me</sampleQuery>            </meta>            <request>                <select>                    <key name=\"owner_guid\" type=\"xs:string\"/>                    <key name=\"name\" type=\"xs:string\"/>                </select>            </request>        </table>    </results></query>"

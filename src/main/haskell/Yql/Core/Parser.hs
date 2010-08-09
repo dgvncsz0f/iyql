@@ -1,9 +1,9 @@
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -66,7 +66,7 @@ parseYql input e = case tokStream
                       Right input_ -> runParser parseYql_ () "stdin" input_
   where parseYql_ = parseSelect e
                     <|> parseDesc e
-        
+
         tokStream = runParser scan "" "stdin" input
 
 quoted :: YqlParser String
@@ -117,7 +117,7 @@ parseSelect e = do keyword (=="SELECT")
                          <|> parseIdentifier e `sepBy` keyword (==","))
                    keyword (=="FROM")
                    t <- parseIdentifier e
-                   w <- whereClause 
+                   w <- whereClause
                         <|> return Nothing
                    f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
                         <|> return []
@@ -131,7 +131,7 @@ parseIdentifier :: ParserEvents i v w f s -> YqlParser i
 parseIdentifier e = fmap (onIdentifier e) symbol_
 
 parseValue :: ParserEvents i v w f s -> YqlParser v
-parseValue e = fmap (onTxtValue e) quoted 
+parseValue e = fmap (onTxtValue e) quoted
                <|> fmap (onNumValue e) numeric
                <|> fmap (const $ onMeValue e) (keyword (=="ME"))
 
@@ -159,7 +159,7 @@ parseFunction e = do n <- symbol_
                        keyword (=="=")
                        v <- parseValue e
                        return (k,v)
-        
+
         mkFunc ('.':n) argv = return (onLocalFunc e (onIdentifier e n) argv)
         mkFunc n argv       = return (onRemoteFunc e (onIdentifier e n) argv)
-                     
+

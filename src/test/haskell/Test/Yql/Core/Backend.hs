@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
+--
 --   * Redistributions of source code must retain the above copyright notice,
 --     this list of conditions and the following disclaimer.
 --   * Redistributions in binary form must reproduce the above copyright notice,
@@ -13,7 +13,7 @@
 --   * Neither the name of the <ORGANIZATION> nor the names of its contributors
 --     may be used to endorse or promote products derived from this software
 --     without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -42,20 +42,15 @@ import Test.HUnit (assertBool, assertEqual)
 test0 = testCase "test endpoint returns the string defined" $
         eq "query.yahooapis.com" (endpoint $ YqlBackend undefined (const $ return ()) (return Nothing))
 
-test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $ 
+test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
         do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined (const $ return()) (return Nothing)) () (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False
 
-test3 = testCase "test executeDesc with search.web" $ 
-        do resp <- unCurlM $ unOutputT $ executeDesc (YqlBackend undefined (const $ return ()) (return Nothing)) "search.web"
-           ok $ (Right $ Table "search.web" Any False) == resp
-
 suite :: [Test]
 suite = [ testGroup "Engine.hs" [ test0
                                 , test2
-                                , test3
                                 ]
         ]
 
