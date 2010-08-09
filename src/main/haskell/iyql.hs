@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -W -Wall #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 
@@ -32,6 +31,7 @@ import System.FilePath
 import System.Directory
 import Yql.Core.Backend
 import Yql.UI.Cli
+import Network.OAuth.Consumer
 
 main :: IO ()
 main = do cfg <- fmap settings getHomeDirectory
@@ -41,4 +41,6 @@ main = do cfg <- fmap settings getHomeDirectory
                                  , autoAddHistory = False
                                  }
         
-        backend = YqlBackend undefined undefined
+        -- TODO:read consumer_key/consumer_sec
+        -- TODO:sessionSave and sessionLoad
+        backend = YqlBackend (Application "TODO:ckey" "TODO:csec" OOB) (const $ return ()) (return Nothing)

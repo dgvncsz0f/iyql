@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -W -Wall #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 -- 

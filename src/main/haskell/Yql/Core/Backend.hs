@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -W -Wall #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
@@ -41,11 +40,13 @@ import Yql.Xml
 import Data.Char
 import Data.Maybe
 import Data.List (isPrefixOf)
+import Data.Time
+import System.Locale
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
 import qualified Codec.Binary.UTF8.String as U
-import Network.OAuth.Consumer
+import Network.OAuth.Consumer hiding (application)
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
@@ -54,17 +55,19 @@ newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
 type Output a = Either String a
 
-data Backend m = YqlBackend Application (Token -> String -> OAuthMonad m ())
+data Backend = YqlBackend { application :: Application 
+                          , sessionSave :: Token -> IO ()
+                          , sessionLoad :: IO (Maybe Token)
+                          }
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
   -- | Returns the endpoint this backend is pointing to
   endpoint :: y -> String
   
-  -- | Returns the application this backend is using to perform
-  -- authenticated requests.
-  app :: y -> Application
-  
+  -- | Returns the credentials that are used to perform the request.
+  credentials :: (MonadIO m,HttpClient m) => y -> Security -> OAuthMonad m ()
+
   -- | Tells the minimum security level required to perform this
   -- statament.
   executeDesc :: (MonadIO m,HttpClient m) => y -> String -> OutputT m Description
@@ -82,15 +85,14 @@ class Yql y where
                         mkRequest   <- fmap execBefore (resolve l stmt)
                         mkResponse  <- fmap execAfter (resolve l stmt)
                         mkOutput    <- fmap execTransform (resolve l stmt)
-                        response    <- lift (runOAuth (serviceRequest PLAINTEXT 
-                                                                      (Just "yahooapis.com") 
-                                                                      (mkRequest $ yqlRequest secLevel)))
+                        response    <- lift (runOAuth $ do credentials y secLevel
+                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ yqlRequest secLevel))
                         return $ mkOutput (toString (mkResponse response))
                         
     where yqlRequest s = ReqHttp { version    = Http11
-                                 , ssl        = True
+                                 , ssl        = False
                                  , host       = endpoint y
-                                 , port       = 443
+                                 , port       = 80
                                  , method     = GET
                                  , reqHeaders = empty
                                  , pathComps  = yqlPath
@@ -102,7 +104,7 @@ class Yql y where
           
           securityLevel = case stmt
                           of _ | desc stmt    -> return Any
-                               | usingMe stmt -> return User        
+                               | usingMe stmt -> return User
                                | otherwise    -> fmap (\(Table _ s) -> s) (executeDesc y (head $ tables stmt))
           
           preparedStmt = case stmt
@@ -122,11 +124,44 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
                 of (x:_) -> "text/xml" `isPrefixOf` (dropWhile isSpace x)
                    _     -> False
         
-instance Yql (Backend m) where
-  endpoint (YqlBackend _ _) = "query.yahooapis.com"
+instance Yql Backend where
+  endpoint _ = "query.yahooapis.com"
   
-  app (YqlBackend v _) = v
+  credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) empty)
+  credentials be App  = ignite (application be)
+  credentials be User = do token_ <- liftIO (sessionLoad be)
+                           case token_
+                             of Nothing               -> do ignite (application be)
+                                                            oauthRequest PLAINTEXT Nothing reqUrl
+                                                            cliAskAuthorization authUrl
+                                                            oauthRequest PLAINTEXT Nothing accUrl
+                                                            token <- getToken
+                                                            liftIO (sessionSave be token)
+                                Just token
+                                  | threeLegged token -> do now <- liftIO getCurrentTime
+                                                            if (expiration token >= now)
+                                                              then do oauthRequest PLAINTEXT Nothing accUrl
+                                                                      token' <- getToken
+                                                                      liftIO (sessionSave be token')
+                                                              else putToken token
+                                  | otherwise         -> do putToken token
+                                                            oauthRequest PLAINTEXT Nothing reqUrl
+                                                            cliAskAuthorization authUrl
+                                                            oauthRequest PLAINTEXT Nothing accUrl
+                                                            token' <- getToken
+                                                            liftIO (sessionSave be token')
+    where reqUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
+          
+          accUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
+          
+          authUrl = findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
+          
+          expiration = fromJust
+                       . parseTime defaultTimeLocale "%s"
+                       . findWithDefault ("oauth_authorization_expires_in","0")
+                       . oauthParams
 
+  
 instance MonadTrans OutputT where
   lift = OutputT . liftM Right
 
