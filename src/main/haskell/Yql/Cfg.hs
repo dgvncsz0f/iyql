@@ -54,7 +54,7 @@ cfg key = do basedir   <- getHomeDirectory
                  val <- runGhc (Just libdir) $ do
                    dflags <- getSessionDynFlags
                    setSessionDynFlags dflags
-                   target <- guessTarget "/home/dsouza/.iyql/cfg.hs" Nothing
+                   target <- guessTarget cfghs Nothing
                    addTarget target
                    r <- load LoadAllTargets
                    case r of
