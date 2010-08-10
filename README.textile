@@ -53,6 +53,7 @@ Install the following using macports:
 <pre><code>
 $ sudo port install haskell-platform
 $ sudo port install hs-haskeline
+$ sudo port install hs-ghc-paths
 $ sudo port install curl
 </code></pre>
 
@@ -67,7 +68,7 @@ $ cabal install test-framework-hunit
 h3. 5.2. Install dependencies - Debian
 
 <pre><code>
-$ sudo apt-get install cabal-install libghc6-curl-dev libghc6-parsec2-dev libghc6-haskeline-dev
+$ sudo apt-get install cabal-install libghc6-curl-dev libghc6-parsec2-dev libghc6-haskeline-dev libghc6-ghc-paths-dev
 $ cabal install hoauth
 $ cabal install xml
 $ cabal install test-framework-hunit
