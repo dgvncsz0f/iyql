@@ -33,11 +33,12 @@ import Yql.Core.Backend
 import Yql.UI.Cli
 import Yql.Cfg
 import Network.OAuth.Consumer
+import Control.Exception
 
 main :: IO ()
 main = do myCfg <- fmap settings getHomeDirectory
-          ckey  <- cfg "oauth_consumer_key" "no_ckey"
-          csec  <- cfg "oauth_consumer_sec" "no_csec"
+          ckey  <- tryCfg "oauth_consumer_key" "no_ckey"
+          csec  <- tryCfg "oauth_consumer_sec" "no_csec"
           runInputT myCfg (iyql (backend ckey csec))
   where settings home = Settings { complete       = noCompletion
                                  , historyFile    = Just (joinPath [home,".iyql_history"])

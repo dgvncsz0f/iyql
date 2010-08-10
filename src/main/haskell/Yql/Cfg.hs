@@ -28,33 +28,40 @@ module Yql.Cfg
        ( -- * Types
          -- * Reading
          cfg 
+       , tryCfg
        ) where
 
+import Prelude hiding (catch)
 import GHC
 import GHC.Paths
 import DynFlags
 import Unsafe.Coerce
 import System.Directory
 import System.FilePath
+import Control.Exception
+
+-- | Read a config entry or return a default value in case there is an error.
+tryCfg :: String -> a -> IO a
+tryCfg key def = catch (cfg key >>= evaluate) (\(SomeException _) -> return def)
 
 -- | Read a config entry from the configuration file.
-cfg :: String -> a -> IO a
-cfg key def = do basedir   <- getHomeDirectory
-                 let cfghs = (joinPath [basedir,".iyql/cfg.hs"])
-                 available <- doesFileExist cfghs
-                 if (available)
-                   then defaultErrorHandler defaultDynFlags $ do 
-                     val <- runGhc (Just libdir) $ do
-                       dflags <- getSessionDynFlags
-                       setSessionDynFlags dflags
-                       target <- guessTarget "/home/dsouza/.iyql/cfg.hs" Nothing
-                       addTarget target
-                       r <- load LoadAllTargets
-                       case r of
-                         Failed -> return def
-                         Succeeded -> do
-                           m <- findModule (mkModuleName "Yql.User.Cfg") Nothing
-                           setContext [] [m]
-                           fmap unsafeCoerce (compileExpr ("Yql.User.Cfg." ++ key))
-                     return val
-                   else return def
+cfg :: String -> IO a
+cfg key = do basedir   <- getHomeDirectory
+             let cfghs = (joinPath [basedir,".iyql/cfg.hs"])
+             available <- doesFileExist cfghs
+             if (available)
+               then defaultErrorHandler defaultDynFlags $ do 
+                 val <- runGhc (Just libdir) $ do
+                   dflags <- getSessionDynFlags
+                   setSessionDynFlags dflags
+                   target <- guessTarget "/home/dsouza/.iyql/cfg.hs" Nothing
+                   addTarget target
+                   r <- load LoadAllTargets
+                   case r of
+                     Failed -> fail "Compilation error"
+                     Succeeded -> do
+                       m <- findModule (mkModuleName "Yql.User.Cfg") Nothing
+                       setContext [] [m]
+                       fmap unsafeCoerce (compileExpr ("Yql.User.Cfg." ++ key))
+                 return val
+               else fail "cfg.hs not found"
