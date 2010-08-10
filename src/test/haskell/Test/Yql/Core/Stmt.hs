@@ -117,6 +117,9 @@ test16 = testCase "test ord implementation of security level [User > App > Any]"
             ok (User > Any)
             ok (User /= App)
             ok (User /= Any)
+            ok (User == User)
+            ok (App == App)
+            ok (Any == Any)
 
 test17 = testCase "test readDescXml extracts attributes" $
          do ok $ (Just (Table "meme.info" Any False)) == (join $ fmap readDescXml (xmlParse xml0))

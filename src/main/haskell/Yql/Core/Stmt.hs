@@ -210,17 +210,17 @@ functions (DESC _ f)       = f
 
 showStmt :: Statement -> String
 showStmt stmt = case stmt
-                of DESC table func             -> "DESC "
-                                                  ++ table
-                                                  ++ funcString func
-                                                  ++ ";"
-                   SELECT cols table whre func -> "SELECT "
-                                                   ++ intercalate "," cols
-                                                   ++ " FROM "
-                                                   ++ table
-                                                   ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
-                                                   ++ funcString func
-                                                   ++ ";"
+                of DESC tbl func             -> "DESC "
+                                                ++ tbl
+                                                ++ funcString func
+                                                ++ ";"
+                   SELECT cols tbl whre func -> "SELECT "
+                                                ++ intercalate "," cols
+                                                ++ " FROM "
+                                                ++ tbl
+                                                ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
+                                                ++ funcString func
+                                                ++ ";"
   where funcString func | null func = ""
                         | otherwise = " | " ++ intercalate " | " (map show func)
 
@@ -229,12 +229,12 @@ readStmt = flip parseYql builder
 
 readDescXml :: XML -> Maybe Description
 readDescXml xml = case (map toLower securityAttr)
-                  of "user" -> fmap (\n -> Table n User https) (attr "name")
-                     "app"  -> fmap (\n -> Table n App https) (attr "name")
-                     _      -> fmap (\n -> Table n Any https) (attr "name")
+                  of "user" -> fmap (\n -> Table n User httpsAttr) (attr "name")
+                     "app"  -> fmap (\n -> Table n App httpsAttr) (attr "name")
+                     _      -> fmap (\n -> Table n Any httpsAttr) (attr "name")
   where attr k = join (fmap (attribute k) (findElement "table" xml))
         Just securityAttr = attr "security" `mplus` Just "ANY"
-        https = Just "true" == attr "https"
+        httpsAttr = Just "true" == attr "https"
 
 showFunc :: Function -> String
 showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"
@@ -275,10 +275,13 @@ instance Show Value where
   showsPrec _ = showString . showValue
 
 instance Ord Security where
-  compare Any _    = LT
-  compare App Any  = GT
-  compare App User = LT
-  compare User _   = GT
+  compare Any Any   = EQ
+  compare App App   = EQ
+  compare User User = EQ
+  compare Any _     = LT
+  compare User _    = GT
+  compare App Any   = GT
+  compare App User  = LT
 
 instance Linker () where
   link _ _ _ = Nothing

@@ -24,24 +24,37 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+module Yql.Cfg
+       ( -- * Types
+         -- * Reading
+         cfg 
+       ) where
 
-import System.Console.Haskeline
-import System.FilePath
+import GHC
+import GHC.Paths
+import DynFlags
+import Unsafe.Coerce
 import System.Directory
-import Yql.Core.Backend
-import Yql.UI.Cli
-import Yql.Cfg
-import Network.OAuth.Consumer
+import System.FilePath
 
-main :: IO ()
-main = do myCfg <- fmap settings getHomeDirectory
-          ckey  <- cfg "oauth_consumer_key" "no_ckey"
-          csec  <- cfg "oauth_consumer_sec" "no_csec"
-          runInputT myCfg (iyql (backend ckey csec))
-  where settings home = Settings { complete       = noCompletion
-                                 , historyFile    = Just (joinPath [home,".iyql_history"])
-                                 , autoAddHistory = False
-                                 }
-
-        backend ckey csec = YqlBackend (Application ckey csec OOB) (const $ return ()) (return Nothing)
+-- | Read a config entry from the configuration file.
+cfg :: String -> a -> IO a
+cfg key def = do basedir   <- getHomeDirectory
+                 let cfghs = (joinPath [basedir,".iyql/cfg.hs"])
+                 available <- doesFileExist cfghs
+                 if (available)
+                   then defaultErrorHandler defaultDynFlags $ do 
+                     val <- runGhc (Just libdir) $ do
+                       dflags <- getSessionDynFlags
+                       setSessionDynFlags dflags
+                       target <- guessTarget "/home/dsouza/.iyql/cfg.hs" Nothing
+                       addTarget target
+                       r <- load LoadAllTargets
+                       case r of
+                         Failed -> return def
+                         Succeeded -> do
+                           m <- findModule (mkModuleName "Yql.User.Cfg") Nothing
+                           setContext [] [m]
+                           fmap unsafeCoerce (compileExpr ("Yql.User.Cfg." ++ key))
+                     return val
+                   else return def

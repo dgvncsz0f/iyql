@@ -117,9 +117,9 @@ class Yql y where
   execute y l stmt = do mkRequest   <- fmap execBefore (resolve l stmt)
                         mkResponse  <- fmap execAfter (resolve l stmt)
                         mkOutput    <- fmap execTransform (resolve l stmt)
-                        desc        <- descTable (findWithDefault ("env","store://datatables.org/alltableswithkeys") . qString . mkRequest $ emptyRequest)
-                        response    <- lift (runOAuth $ do credentials y (security desc)
-                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") ((mkRequest $ myRequest desc) { host = endpoint y } ))
+                        tableDesc   <- descTable (findWithDefault ("env","store://datatables.org/alltableswithkeys") . qString . mkRequest $ emptyRequest)
+                        response    <- lift (runOAuth $ do credentials y (security tableDesc)
+                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") ((mkRequest $ myRequest tableDesc) { host = endpoint y } ))
                         return $ mkOutput (toString (mkResponse response))
 
     where descTable env = case stmt
