@@ -167,21 +167,18 @@ instance Yql Backend where
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
-                                                            token <- getToken
-                                                            liftIO (sessionSave be token)
+                                                            getToken >>= liftIO . sessionSave be
                                 Just token
                                   | threeLegged token -> do now <- liftIO getCurrentTime
                                                             if (expiration token >= now)
                                                               then do oauthRequest PLAINTEXT Nothing accUrl
-                                                                      token' <- getToken
-                                                                      liftIO (sessionSave be token')
+                                                                      getToken >>=  liftIO . sessionSave be
                                                               else putToken token
                                   | otherwise         -> do putToken token
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
-                                                            token' <- getToken
-                                                            liftIO (sessionSave be token')
+                                                            getToken >>= liftIO . sessionSave be
     where reqUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
 
           accUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
