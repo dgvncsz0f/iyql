@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 --
@@ -24,21 +25,34 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+module Test.Yql.Cfg where
 
+#define eq assertEqual (__FILE__ ++":"++ show __LINE__)
+#define ok assertBool (__FILE__ ++":"++ show __LINE__)
+#define mycfg __FILE__ ++"/cfg"
+
+import Yql.Cfg
 import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Stmt as C
-import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.Functions.Tables as E
-import qualified Test.Yql.Cfg as F
+import Test.Framework.Providers.HUnit
+import Test.HUnit (assertBool, assertEqual)
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            , D.suite
-                            , E.suite
-                            , F.suite
-                            ]
+test0 = testCase "testing trycfg returns default when property is not defined" $ 
+        do eq "foobar" (tryCfg empty "foobar" "foobar")
+
+test1 = testCase "testing trycfg returns the value defined in the config file" $
+        do eq "oobar" (tryCfg (fromList [("f","oobar")]) "f" "")
+
+test2 = testCase "testing parseCfg ignores comments" $
+        do eq (fromList [("foo","bar")]) (parseCfg "--foobar\nfoo: bar\n")
+           eq (fromList [("foo","bar ")]) (parseCfg "--foobar\nfoo: bar --foobar\n")
+
+test3 = testCase "testing parseCfg ignores spaces" $
+        do eq (fromList [("foo","bar")]) (parseCfg "\n\n   \nfoo: bar\n\n\n")
+           
+suite :: [Test]
+suite = [ testGroup "Cfg.hs" [ test0
+                             , test1
+                             , test2
+                             , test3
+                             ]
+        ]

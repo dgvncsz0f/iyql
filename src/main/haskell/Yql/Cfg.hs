@@ -26,42 +26,71 @@
 
 module Yql.Cfg
        ( -- * Types
+         Cfg()
          -- * Reading
-         cfg 
+       , cfg 
        , tryCfg
+       , usrCfg
+       , parseCfg
+         -- * Building
+       , empty
+       , fromList
        ) where
 
 import Prelude hiding (catch)
-import GHC
-import GHC.Paths
-import DynFlags
-import Unsafe.Coerce
-import System.Directory
-import System.FilePath
+import Data.Char
+import Data.List
 import Control.Exception
+import System.FilePath
+import System.Directory
+import System.IO
 
--- | Read a config entry or return a default value in case there is an error.
-tryCfg :: String -> a -> IO a
-tryCfg key def = catch (cfg key >>= evaluate) (\(SomeException _) -> return def)
+newtype Cfg = Cfg [(String,String)]
+            deriving (Show,Eq,Ord)
+
+-- | Returns an empty configuration
+empty :: Cfg
+empty = fromList []
+
+-- | Reads configuration from a list
+fromList :: [(String,String)] -> Cfg
+fromList = Cfg
+
+-- | Read a config entry or return a default value in case there is an
+-- error.
+tryCfg :: Cfg -> String -> String -> String
+tryCfg (Cfg db) key def = case (lookup key db)
+                          of Nothing  -> def
+                             Just rst -> rst
 
 -- | Read a config entry from the configuration file.
-cfg :: String -> IO a
-cfg key = do basedir   <- getHomeDirectory
-             let cfghs = (joinPath [basedir,".iyql/cfg.hs"])
-             available <- doesFileExist cfghs
-             if (available)
-               then defaultErrorHandler defaultDynFlags $ do 
-                 val <- runGhc (Just libdir) $ do
-                   dflags <- getSessionDynFlags
-                   setSessionDynFlags dflags
-                   target <- guessTarget cfghs Nothing
-                   addTarget target
-                   r <- load LoadAllTargets
-                   case r of
-                     Failed -> fail "Compilation error"
-                     Succeeded -> do
-                       m <- findModule (mkModuleName "Yql.User.Cfg") Nothing
-                       setContext [] [m]
-                       fmap unsafeCoerce (compileExpr ("Yql.User.Cfg." ++ key))
-                 return val
-               else fail "cfg.hs not found"
+cfg :: FilePath -> IO Cfg
+cfg file = catch readCfg (\(SomeException _) -> return (Cfg []))
+  where readCfg = do available <- doesFileExist file
+                     if (available)
+                       then bracket (openFile file ReadMode) hClose (\h -> fmap parseCfg (hGetContents h >>= evaluate))
+                       else return (Cfg [])
+
+-- | The configuration file is as follows:
+--    1. Lines starting with -- are considered comments;
+--    2. Empty lines are also discarded;
+--    3. Entries are simply pairs, separated by colon (:);
+parseCfg :: String -> Cfg
+parseCfg = Cfg . map (parseEntry . stripComments) . filter properEntries . lines
+  where properEntries xs0 
+          | "--" `isPrefixOf` xs = False
+          | null xs              = False
+          | otherwise            = True
+            where xs = dropWhile isSpace xs0
+        
+        parseEntry xs = let (key,val) = break (==':') (dropWhile isSpace xs)
+                        in (key,dropWhile isSpace (drop 1 val))
+        
+        stripComments []          = []
+        stripComments ('-':'-':_) = []
+        stripComments (x:xs)      = x : stripComments xs
+
+-- | File configuration file
+usrCfg :: IO Cfg
+usrCfg = do basedir <- getHomeDirectory
+            cfg (joinPath [basedir,".iyql/cfg"])

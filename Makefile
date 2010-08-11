@@ -24,7 +24,7 @@ TESTPRG=$(basename $(TESTPRG_SRC))
 HC      = /usr/bin/ghc
 INSTALL = /usr/bin/install
 
-HCFLAGS = -package ghc
+HCFLAGS =
 PREFIX  = /usr/local
 
 PREFIX=/usr/local
