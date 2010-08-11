@@ -32,6 +32,7 @@ module Yql.Cfg
        , tryCfg
        , usrCfg
        , parseCfg
+       , basedir
          -- * Building
        , empty
        , fromList
@@ -90,7 +91,11 @@ parseCfg = Cfg . map (parseEntry . stripComments) . filter properEntries . lines
         stripComments ('-':'-':_) = []
         stripComments (x:xs)      = x : stripComments xs
 
+-- | Base directory where configuration files are read from
+basedir :: IO FilePath
+basedir = fmap (\home -> joinPath [home,".iyql"]) getHomeDirectory
+
 -- | File configuration file
 usrCfg :: IO Cfg
-usrCfg = do basedir <- getHomeDirectory
-            cfg (joinPath [basedir,".iyql/cfg"])
+usrCfg = do home <- basedir
+            cfg (joinPath [home,"cfg"])

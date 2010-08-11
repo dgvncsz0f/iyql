@@ -35,15 +35,17 @@ import Yql.Cfg
 import Network.OAuth.Consumer
 
 main :: IO ()
-main = do myCfg  <- fmap settings getHomeDirectory
+main = do myCfg  <- fmap settings basedir
+          home   <- basedir
           config <- usrCfg
-          runInputT myCfg (iyql (backend (cfgCkey config) (cfgCsec config)))
+          runInputT myCfg (iyql (backend home config))
   where settings home = Settings { complete       = noCompletion
                                  , historyFile    = Just (joinPath [home,".iyql_history"])
                                  , autoAddHistory = False
                                  }
 
-        backend ckey csec = YqlBackend (Application ckey csec OOB) (const $ return ()) (return Nothing)
-        
-        cfgCkey config = tryCfg config "oauth_consumer_key" "no_ckey"
-        cfgCsec config = tryCfg config "oauth_consumer_sec" "no_csec"
+        backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) mySessionSave mySessionLoad
+          where cfgCKey = tryCfg config "oauth_consumer_key" "no_ckey"
+                cfgCSec = tryCfg config "oauth_consumer_sec" "no_csec"
+                mySessionSave = fileSave (joinPath [home,"oauth_token"])
+                mySessionLoad = fileLoad (joinPath [home,"oauth_token"])

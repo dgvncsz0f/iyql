@@ -33,6 +33,9 @@ module Yql.Core.Backend
        , OutputT()
          -- * Monads
        , unOutputT
+         -- * Session Util
+       , fileSave
+       , fileLoad
        ) where
 
 import Yql.Core.Stmt
@@ -42,7 +45,9 @@ import Data.Char
 import Data.Maybe
 import Data.List (isPrefixOf)
 import Data.Time
+import Data.Binary
 import System.Locale
+import System.Directory
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
@@ -60,6 +65,15 @@ data Backend = YqlBackend { application :: Application
                           , sessionSave :: Token -> IO ()
                           , sessionLoad :: IO (Maybe Token)
                           }
+
+fileSave :: FilePath -> Token -> IO ()
+fileSave = encodeFile
+
+fileLoad :: FilePath -> IO (Maybe Token)
+fileLoad file = do valid <- doesFileExist file 
+                   if (valid)
+                     then fmap Just (decodeFile file)
+                     else return Nothing
 
 -- | Tells the minimum security level required to perform this
 -- statament.
