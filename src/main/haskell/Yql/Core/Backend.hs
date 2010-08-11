@@ -29,7 +29,6 @@ module Yql.Core.Backend
        ( -- * Types
          Yql(..)
        , Backend(..)
-       , Output()
        , OutputT()
          -- * Monads
        , unOutputT
@@ -58,8 +57,6 @@ import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
-
-type Output a = Either String a
 
 data Backend = YqlBackend { application :: Application
                           , sessionSave :: Token -> IO ()
@@ -218,12 +215,3 @@ instance Monad m => Functor (OutputT m) where
                                      case v
                                        of Left msg -> return (Left msg)
                                           Right v' -> return (Right $ f v')
-
-instance Monad (Either String) where
-  fail = Left
-
-  return = Right
-
-  m >>= f = case m
-            of Right v  -> f v
-               Left msg -> Left msg
