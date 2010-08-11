@@ -169,11 +169,12 @@ instance Yql Backend where
                                                             oauthRequest PLAINTEXT Nothing accUrl
                                                             getToken >>= liftIO . sessionSave be
                                 Just token
-                                  | threeLegged token -> do now <- liftIO getCurrentTime
+                                  | threeLegged token -> do putToken token
+                                                            now <- liftIO getCurrentTime
                                                             if (expiration token >= now)
                                                               then do oauthRequest PLAINTEXT Nothing accUrl
                                                                       getToken >>=  liftIO . sessionSave be
-                                                              else putToken token
+                                                              else return ()
                                   | otherwise         -> do putToken token
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
