@@ -87,8 +87,8 @@ h2. 6. Using
 When iyql is started it attempts to read the file $HOME/.iyql/cfg. This file should contains the oauth credentials (consumer secret and consumer key) in order to execute three legged oauth requests. Following there is an example of this file:
 <pre><code>
 -- Lines starting with -- are considered comments
--- Attributes keys are strings with any character but :
--- Attributes values are any strings but \n
+-- Attributes keys are strings with any character but `:' (COLON)
+-- Attributes values are any strings with any character but `\n' (LF)
 
 -- Refer to http://developer.yahoo.com/dashboard/ in order to create/read yours keys
 oauth_consumer_key: my_consumer_key
