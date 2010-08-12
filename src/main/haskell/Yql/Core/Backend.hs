@@ -55,12 +55,13 @@ import Network.OAuth.Consumer hiding (application)
 import Network.OAuth.Http.Request hiding (insert)
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
+import Debug.Trace
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
-data Backend = YqlBackend { application :: Application
-                          , sessionSave :: Token -> IO ()
-                          , sessionLoad :: IO (Maybe Token)
+data Backend = YqlBackend { application  :: Application
+                          , sessionSave  :: Token -> IO ()
+                          , sessionLoad  :: IO (Maybe Token)
                           }
 
 fileSave :: FilePath -> Token -> IO ()
@@ -177,11 +178,12 @@ instance Yql Backend where
                                                             getToken >>= liftIO . sessionSave be
                                 Just token
                                   | threeLegged token -> do putToken token
-                                                            now <- liftIO getCurrentTime
-                                                            if (expiration token >= now)
-                                                              then do oauthRequest PLAINTEXT Nothing accUrl
-                                                                      getToken >>=  liftIO . sessionSave be
-                                                              else return ()
+                                                            fail "TODO:fixme [oauth_authorization_expires_in is not what I wanted]"
+                                                            -- now <- liftIO getCurrentTime
+                                                            -- if (expiration token >= now)
+                                                            --   then do oauthRequest PLAINTEXT Nothing accUrl
+                                                            --           getToken >>=  liftIO . sessionSave be
+                                                            --   else return ()
                                   | otherwise         -> do putToken token
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
@@ -193,10 +195,10 @@ instance Yql Backend where
 
           authUrl = findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
 
-          expiration = fromJust
-                       . parseTime defaultTimeLocale "%s"
-                       . findWithDefault ("oauth_authorization_expires_in","0")
-                       . oauthParams
+          -- expiration = fromJust
+          --              . parseTime defaultTimeLocale "%s"
+          --              . findWithDefault ("xoauth_now","0")
+          --              . oauthParams
 
 instance MonadTrans OutputT where
   lift = OutputT . liftM Right
