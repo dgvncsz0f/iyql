@@ -62,6 +62,11 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test21
                                 , test22
                                 , test23
+                                , test24
+                                , test25
+                                , test26
+                                , test27
+                                , test28
                                 ]
         ]
 
@@ -146,6 +151,21 @@ test22 = testCase "insert statements without functions and multiple fields" $
 test23 = testCase "insert statements with functions" $
          do eq "INSERT INTO foobar (foo) VALUES (\"0\") | .iyql();" (runYqlParser_ "insert into foobar (foo) values ('0') | .iyql();")
 
+test24 = testCase "delete statements with functions" $
+         do eq "DELETE FROM foobar | .diagnostics();" (runYqlParser_ "delete from foobar | .diagnostics();")
+
+test25 = testCase "delete statements without functions and single field" $
+         do eq "DELETE FROM foobar WHERE guid=me;" (runYqlParser_ "delete from foobar where guid=me;")
+
+test26 = testCase "delete statements without functions and multiple fields" $
+         do eq "DELETE FROM foobar WHERE guid=me | .diagnostics();" (runYqlParser_ "delete from foobar where guid=me | .diagnostics();")
+
+test27 = testCase "delete statements with functions and single field" $
+         do eq "DELETE FROM foobar WHERE guid=me | .diagnostics();" (runYqlParser_ "delete from foobar where guid=me | .diagnostics();")
+
+test28 = testCase "delete statements with functions and multiple fields" $
+         do eq "DELETE FROM foobar WHERE guid=me OR name=\"foo\" | .diagnostics();" (runYqlParser_ "delete from foobar where guid=me or name=\"foo\" | .diagnostics();")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -159,7 +179,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onSelect     = mkSelect
                              , onUpdate     = mkUpdate
                              , onInsert     = mkInsert
-                             , onDelete     = undefined
+                             , onDelete     = mkDelete
                              , onDesc       = mkDesc
                              , onEqExpr     = mkEqExpr
                              , onInExpr     = mkInExpr
@@ -175,6 +195,9 @@ stringBuilder = ParserEvents { onIdentifier = id
 
         mkUpdate c t Nothing f  = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ showFunction f ++ ";"
         mkUpdate c t (Just w) f = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        
+        mkDelete t Nothing f  = "DELETE FROM " ++ t ++ showFunction f ++ ";"
+        mkDelete t (Just w) f = "DELETE FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
         
         mkInsert c t f = "INSERT INTO " ++ t ++ " (" ++ intercalate "," (map fst c) ++ ") VALUES (" ++ intercalate "," (map snd c) ++ ")" ++ showFunction f ++ ";"
 

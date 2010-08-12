@@ -38,6 +38,7 @@ import System.Directory
 import Control.Monad (join)
 
 data SessionBackend = FileStorage FilePath
+                    | DevNullStorage
 
 -- | Extends the token adding time information.
 newtype TimedToken = TimedToken { unToken :: (String,Token) }
@@ -68,10 +69,15 @@ class SessionMgr s where
 
 instance SessionMgr SessionBackend where
   save (FileStorage file) tk = augument tk >>= fileSessionSave file
+  save DevNullStorage _ = return ()
+  
   load (FileStorage file)    = fmap (fmap (snd . unToken)) (fileSessionLoad file)
+  load DevNullStorage  = return Nothing
+  
+  mtime DevNullStorage = return Nothing
   mtime (FileStorage file)   = fmap (join . fmap (toUTC . fst . unToken)) (fileSessionLoad file)
     where toUTC = parseTime defaultTimeLocale "%s"
-
+  
 instance Binary TimedToken where
   put (TimedToken (ts,tk)) = do put ts
                                 put tk

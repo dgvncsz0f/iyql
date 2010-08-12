@@ -48,7 +48,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onSelect     :: [i] -> i -> Maybe w -> [f] -> s
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
                                            , onInsert     :: [(i,v)] -> i -> [f] -> s
-                                           , onDelete     :: i -> Maybe w -> s
+                                           , onDelete     :: i -> Maybe w -> [f] -> s
                                            , onDesc       :: i -> [f] -> s
                                            , onEqExpr     :: i -> v -> w
                                            , onInExpr     :: i -> [v] -> w
@@ -68,6 +68,7 @@ parseYql input e = case tokStream
                     <|> parseSelect e
                     <|> parseUpdate e
                     <|> parseInsert e
+                    <|> parseDelete e
 
         tokStream = runParser scan "" "stdin" input
 
@@ -107,8 +108,7 @@ tkEof = accept $ \t -> case t
 parseDesc :: ParserEvents i v w f s -> YqlParser s
 parseDesc e = do keyword (=="DESC")
                  t <- parseIdentifier e
-                 f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
-                      <|> return []
+                 f <- parseFunctions e
                  keyword (==";")
                  tkEof
                  return (onDesc e t f)
@@ -121,8 +121,7 @@ parseSelect e = do keyword (=="SELECT")
                    t <- parseIdentifier e
                    w <- whereClause
                         <|> return Nothing
-                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
-                        <|> return []
+                   f <- parseFunctions e
                    keyword (==";")
                    tkEof
                    return (onSelect e c t w f)
@@ -136,9 +135,9 @@ parseUpdate e = do keyword (=="UPDATE")
                    c <- parseSet `sepBy` keyword (==",")
                    w <- whereClause
                         <|> return Nothing
-                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
-                        <|> return []
+                   f <- parseFunctions e
                    keyword (==";")
+                   tkEof
                    return (onUpdate e c t w f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
@@ -147,6 +146,19 @@ parseUpdate e = do keyword (=="UPDATE")
                       keyword (=="=")
                       v <- parseValue e
                       return (k,v)
+
+parseDelete :: ParserEvents i v w f s -> YqlParser s
+parseDelete e = do keyword (=="DELETE")
+                   keyword (=="FROM")
+                   t <- parseIdentifier e
+                   w <- whereClause
+                        <|> return Nothing
+                   f <- parseFunctions e
+                   keyword (==";")
+                   tkEof
+                   return (onDelete e t w f)
+  where whereClause = do keyword (=="WHERE")
+                         fmap Just (parseWhere e)
 
 parseInsert :: ParserEvents i v w f s -> YqlParser s
 parseInsert e = do keyword (=="INSERT")
@@ -159,9 +171,9 @@ parseInsert e = do keyword (=="INSERT")
                    keyword (=="(")
                    v <- parseValue e `sepBy` keyword (==",")
                    keyword (==")")
-                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
-                        <|> return []
+                   f <- parseFunctions e
                    keyword (==";")
+                   tkEof
                    return (onInsert e (zip c v) t f)
 
 parseIdentifier :: ParserEvents i v w f s -> YqlParser i
@@ -185,6 +197,10 @@ parseWhere e = do column <- parseIdentifier e
                                       keyword (==")")
                                       return ret
         parseValueBy _ _         = fail "expecting one of [=,IN]"
+
+parseFunctions :: ParserEvents i v w f s -> YqlParser [f]
+parseFunctions e = (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
+                   <|> return []
 
 parseFunction :: ParserEvents i v w f s -> YqlParser f
 parseFunction e = do n <- symbol_

@@ -62,6 +62,9 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test20
                               , test21
                               , test22
+                              , test23
+                              , test24
+                              , test25
                               ]
         ]
 
@@ -179,3 +182,16 @@ test21 = testCase "read insert statements produces the correct type" $
 test22 = testCase "show produces the correct stmt for updates" $
          do eq ("INSERT INTO foobar (foo) VALUES (\"bar\");") (show $ INSERT [("foo",TxtValue "bar")] "foobar" [])
             eq ("INSERT INTO foobar (a,b) VALUES (0,1);") (show $ INSERT [("a",NumValue "0"),("b",NumValue "1")] "foobar" [])
+
+test23 = testCase "show produces the correct stmt for deletes" $ 
+         do eq ("DELETE FROM foobar WHERE guid=me;") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [])
+            eq ("DELETE FROM foobar;") (show $ DELETE "foobar" Nothing [])
+            eq ("DELETE FROM foobar WHERE guid=me | .diagnostics();") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [Local "diagnostics" []])
+
+test24 = testCase "read delete statements produces the correct type" $
+         do eq (DELETE "foobar" Nothing []) (read "delete from foobar;")
+            eq (DELETE "foobar" (Just $ "guid" `OpEq` MeValue) []) (read "delete from foobar where guid=me;")
+            eq (DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [Local "diagnostics" []]) (read "delete from foobar where guid=me | .diagnostics();")
+
+test25 = testCase "delete returns true for delete stmts" $
+         do ok (delete $ DELETE "" Nothing [])

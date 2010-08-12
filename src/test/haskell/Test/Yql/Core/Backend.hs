@@ -30,6 +30,7 @@ module Test.Yql.Core.Backend where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
+import Yql.Core.Session
 import Yql.Core.Stmt
 import Yql.Core.Backend
 import Network.OAuth.Consumer
@@ -40,10 +41,10 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "test endpoint returns the string defined" $
-        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined (const $ return ()) (return Nothing))
+        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined DevNullStorage)
 
 test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined (const $ return()) (return Nothing)) () (read "select title,abstract from search.web where query=\"iyql\";")
+        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage) () (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False

@@ -39,6 +39,7 @@ module Yql.Core.Stmt
        , select
        , update
        , insert
+       , delete
        , desc
        , local
        , remote
@@ -64,9 +65,9 @@ module Yql.Core.Stmt
 
 import Yql.Core.Parser
 import Yql.Xml
-import Data.List hiding (insert)
+import Data.List hiding (insert,delete)
 import Data.Char
-import Network.OAuth.Http.Request hiding (insert)
+import Network.OAuth.Http.Request hiding (insert,DELETE)
 import Network.OAuth.Http.Response
 import Control.Monad
 
@@ -97,14 +98,15 @@ data Statement = SELECT [String] String (Maybe Where) [Function]
                | DESC String [Function]
                | UPDATE [(String,Value)] String (Maybe Where) [Function]
                | INSERT [(String,Value)] String [Function]
+               | DELETE String (Maybe Where) [Function]
                deriving (Eq)
 
 -- | Local functions that may change a given yql query
 data Exec = Before (Request -> Request)
           | After (Response -> Response)
           | Transform (String -> String)
-          | NOp
           | Seq Exec Exec
+          | NOp
 
 -- | The different security level tables may request
 data Security = User    -- ^ Requires 3-legged oauth to perform the request
@@ -159,7 +161,7 @@ builder = ParserEvents { onIdentifier = id
                        , onMeValue    = MeValue
                        , onSelect     = SELECT
                        , onUpdate     = UPDATE
-                       , onDelete     = undefined
+                       , onDelete     = DELETE
                        , onInsert     = INSERT
                        , onDesc       = DESC
                        , onEqExpr     = OpEq
@@ -189,6 +191,11 @@ insert :: Statement -> Bool
 insert (INSERT _ _ _) = True
 insert _              = False
 
+-- | Test if the statement is a delete statement
+delete :: Statement -> Bool
+delete (DELETE _ _ _) = True
+delete _              = False
+
 -- | Test if the function is a local function
 local :: Function -> Bool
 local (Local _ _) = True
@@ -205,6 +212,7 @@ tables (SELECT _ t _ _) = [t]
 tables (DESC t _)       = [t]
 tables (UPDATE _ t _ _) = [t]
 tables (INSERT _ t _)   = [t]
+tables (DELETE t _ _)   = [t]
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
@@ -215,17 +223,18 @@ usingMe stmt = case stmt
                   (UPDATE c _ w _) -> Just True == fmap findMe w
                                       || any (MeValue==) (map snd c)
                   (INSERT c _ _)   -> any (MeValue==) (map snd c)
+                  (DELETE _ w _)   -> Just True == fmap findMe w
   where findMe (_ `OpEq` v)    = v == MeValue
         findMe (_ `OpIn` vs)   = any (==MeValue) vs
         findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
         findMe (w0 `OpOr` w1)  = findMe w0 || findMe w1
-
 
 functions :: Statement -> [Function]
 functions (SELECT _ _ _ f) = f
 functions (DESC _ f)       = f
 functions (UPDATE _ _ _ f) = f
 functions (INSERT _ _ f)   = f
+functions (DELETE _ _ f)   = f
 
 showStmt :: Statement -> String
 showStmt stmt = case stmt
@@ -254,6 +263,11 @@ showStmt stmt = case stmt
                                                 ++ ") VALUES ("
                                                 ++ intercalate "," (map (showValue . snd) set)
                                                 ++ ")"
+                                                ++ funcString func
+                                                ++ ";"
+                   DELETE tbl whre func      -> "DELETE FROM "
+                                                ++ tbl
+                                                ++ whereString whre
                                                 ++ funcString func
                                                 ++ ";"
 

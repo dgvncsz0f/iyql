@@ -46,14 +46,13 @@ import Data.Maybe
 import Data.List (isPrefixOf)
 import Data.Time
 import Data.Binary
-import System.Locale
 import System.Directory
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
 import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer hiding (application)
-import Network.OAuth.Http.Request hiding (insert)
+import Network.OAuth.Http.Request hiding (insert,DELETE)
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 
@@ -118,6 +117,7 @@ yqlRequest stmt d = emptyRequest { ssl        = https d
                           (DESC t _)       -> DESC t []
                           (UPDATE c t w f) -> UPDATE c t w (filter remote f)
                           (INSERT c t f)   -> INSERT c t (filter remote f)
+                          (DELETE t w f)   -> DELETE t w (filter remote f)
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
