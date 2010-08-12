@@ -52,7 +52,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
 import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer hiding (application)
-import Network.OAuth.Http.Request hiding (insert,DELETE)
+import qualified Network.OAuth.Http.Request as R
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 
@@ -81,24 +81,24 @@ executeDesc y t env = execute y ldd (DESC t [Local "request" [("env",TxtValue en
                                            Nothing  -> fail $ "couldn't desc table " ++ t
                             Nothing  -> fail "error parsing xml"
 
-emptyRequest :: Request
-emptyRequest = ReqHttp { version    = Http11
-                       , ssl        = False
-                       , host       = "query.yahooapis.com"
-                       , port       = 80
-                       , method     = GET
-                       , reqHeaders = empty
-                       , pathComps  = ["","v1","public","yql"]
-                       , qString    = empty
-                       , reqPayload = B.empty
-                       }
+emptyRequest :: R.Request
+emptyRequest = R.ReqHttp { R.version    = R.Http11
+                         , R.ssl        = False
+                         , R.host       = "query.yahooapis.com"
+                         , R.port       = 80
+                         , R.method     = R.GET
+                         , R.reqHeaders = R.empty
+                         , R.pathComps  = ["","v1","public","yql"]
+                         , R.qString    = R.empty
+                         , R.reqPayload = B.empty
+                         }
 
-yqlRequest :: Statement -> Description -> Request
-yqlRequest stmt d = emptyRequest { ssl        = https d
-                                 , port       = portNumber
-                                 , pathComps  = yqlPath
-                                 , method     = httpMethod
-                                 , qString    = fromList [("q",show preparedStmt),("env","store://datatables.org/alltableswithkeys")]
+yqlRequest :: Statement -> Description -> R.Request
+yqlRequest stmt d = emptyRequest { R.ssl        = https d
+                                 , R.port       = portNumber
+                                 , R.pathComps  = yqlPath
+                                 , R.method     = httpMethod
+                                 , R.qString    = R.fromList [("q",show preparedStmt),("env","store://datatables.org/alltableswithkeys")]
                                  }
   where yqlPath
           | security d `elem` [User,App] = ["","v1","yql"]
@@ -108,9 +108,10 @@ yqlRequest stmt d = emptyRequest { ssl        = https d
           | https d   = 443
           | otherwise = 80
 
-        httpMethod | update stmt = PUT
-                   | insert stmt = PUT
-                   | otherwise   = GET
+        httpMethod | update stmt = R.PUT
+                   | insert stmt = R.PUT
+                   | delete stmt = R.DELETE
+                   | otherwise   = R.GET
 
         preparedStmt = case stmt
                        of (SELECT c t w f) -> SELECT c t w (filter remote f)
@@ -135,9 +136,9 @@ class Yql y where
   execute y l stmt = do mkRequest   <- fmap execBefore (ld l stmt)
                         mkResponse  <- fmap execAfter (ld l stmt)
                         mkOutput    <- fmap execTransform (ld l stmt)
-                        tableDesc   <- descTable (findWithDefault ("env","store://datatables.org/alltableswithkeys") . qString . mkRequest $ emptyRequest)
+                        tableDesc   <- descTable (R.findWithDefault ("env","store://datatables.org/alltableswithkeys") . R.qString . mkRequest $ emptyRequest)
                         response    <- lift (runOAuth $ do credentials y (security tableDesc)
-                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") ((mkRequest $ myRequest tableDesc) { host = endpoint y } ))
+                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") ((mkRequest $ myRequest tableDesc) { R.host = endpoint y } ))
                         return $ mkOutput (toString (mkResponse response))
 
     where descTable env = case stmt
@@ -157,7 +158,7 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
 
         payload = U.decode . B.unpack . rspPayload $ resp
 
-        contentType = find (\s -> map toLower s == "content-type") (rspHeaders resp)
+        contentType = R.find (\s -> map toLower s == "content-type") (rspHeaders resp)
 
         isXML = case contentType
                 of (x:_) -> "text/xml" `isPrefixOf` (dropWhile isSpace x)
@@ -166,7 +167,7 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
 instance SessionMgr a => Yql (Backend a) where
   endpoint _ = "query.yahooapis.com"
 
-  credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) empty)
+  credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
   credentials be App  = ignite (application be)
   credentials be User = do token_ <- liftIO (load (sessionMgr be))
                            case token_
@@ -188,13 +189,13 @@ instance SessionMgr a => Yql (Backend a) where
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
                                                             getToken >>= liftIO . save (sessionMgr be)
-    where reqUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
+    where reqUrl  = fromJust . R.parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
 
-          accUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
+          accUrl  = fromJust . R.parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
 
-          authUrl = findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
+          authUrl = R.findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
 
-          expiration offset token = let timeout = read . findWithDefault ("oauth_expires_in","3600") 
+          expiration offset token = let timeout = read . R.findWithDefault ("oauth_expires_in","3600") 
                                                        . oauthParams $ token
                                     in addUTCTime (fromInteger timeout) offset
 
