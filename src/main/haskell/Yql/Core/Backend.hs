@@ -39,6 +39,7 @@ module Yql.Core.Backend
 
 import Yql.Core.Stmt
 import Yql.Core.Ldd
+import Yql.Core.Session
 import Yql.Xml
 import Data.Char
 import Data.Maybe
@@ -55,14 +56,12 @@ import Network.OAuth.Consumer hiding (application)
 import Network.OAuth.Http.Request hiding (insert)
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
-import Debug.Trace
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
-data Backend = YqlBackend { application  :: Application
-                          , sessionSave  :: Token -> IO ()
-                          , sessionLoad  :: IO (Maybe Token)
-                          }
+data SessionMgr s => Backend s = YqlBackend { application  :: Application
+                                            , sessionMgr   :: s
+                                            }
 
 fileSave :: FilePath -> Token -> IO ()
 fileSave = encodeFile
@@ -164,41 +163,40 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
                 of (x:_) -> "text/xml" `isPrefixOf` (dropWhile isSpace x)
                    _     -> False
 
-instance Yql Backend where
+instance SessionMgr a => Yql (Backend a) where
   endpoint _ = "query.yahooapis.com"
 
   credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) empty)
   credentials be App  = ignite (application be)
-  credentials be User = do token_ <- liftIO (sessionLoad be)
+  credentials be User = do token_ <- liftIO (load (sessionMgr be))
                            case token_
                              of Nothing               -> do ignite (application be)
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
-                                                            getToken >>= liftIO . sessionSave be
+                                                            getToken >>= liftIO . save (sessionMgr be)
                                 Just token
                                   | threeLegged token -> do putToken token
-                                                            fail "TODO:fixme [oauth_authorization_expires_in is not what I wanted]"
-                                                            -- now <- liftIO getCurrentTime
-                                                            -- if (expiration token >= now)
-                                                            --   then do oauthRequest PLAINTEXT Nothing accUrl
-                                                            --           getToken >>=  liftIO . sessionSave be
-                                                            --   else return ()
+                                                            now    <- liftIO getCurrentTime
+                                                            offset <- liftIO $ fmap fromJust (mtime (sessionMgr be))
+                                                            if (now >= expiration offset token)
+                                                              then do oauthRequest PLAINTEXT Nothing accUrl
+                                                                      getToken >>=  liftIO . save (sessionMgr be)
+                                                              else return ()
                                   | otherwise         -> do putToken token
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
-                                                            getToken >>= liftIO . sessionSave be
+                                                            getToken >>= liftIO . save (sessionMgr be)
     where reqUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
 
           accUrl  = fromJust . parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
 
           authUrl = findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
 
-          -- expiration = fromJust
-          --              . parseTime defaultTimeLocale "%s"
-          --              . findWithDefault ("xoauth_now","0")
-          --              . oauthParams
+          expiration offset token = let timeout = read . findWithDefault ("oauth_expires_in","3600") 
+                                                       . oauthParams $ token
+                                    in addUTCTime (fromInteger timeout) offset
 
 instance MonadTrans OutputT where
   lift = OutputT . liftM Right

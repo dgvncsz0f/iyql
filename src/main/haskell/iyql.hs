@@ -29,6 +29,7 @@ module Main where
 import System.Console.Haskeline
 import System.FilePath
 import Yql.Core.Backend
+import Yql.Core.Session
 import Yql.UI.Cli
 import Yql.Cfg
 import Network.OAuth.Consumer
@@ -43,8 +44,6 @@ main = do myCfg  <- fmap settings basedir
                                  , autoAddHistory = False
                                  }
 
-        backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) mySessionSave mySessionLoad
+        backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) (FileStorage (joinPath [home,"oauth_token"]))
           where cfgCKey = tryCfg config "oauth_consumer_key" "no_ckey"
                 cfgCSec = tryCfg config "oauth_consumer_sec" "no_csec"
-                mySessionSave = fileSave (joinPath [home,"oauth_token"])
-                mySessionLoad = fileLoad (joinPath [home,"oauth_token"])
