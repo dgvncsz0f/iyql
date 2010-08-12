@@ -38,6 +38,7 @@ module Yql.Core.Stmt
          -- * Query
        , select
        , update
+       , insert
        , desc
        , local
        , remote
@@ -54,7 +55,7 @@ module Yql.Core.Stmt
        , showValue
        , showWhere
          -- * Misc
-       , resolve
+       , ld
        , pipeline
        , execBefore
        , execAfter
@@ -63,9 +64,9 @@ module Yql.Core.Stmt
 
 import Yql.Core.Parser
 import Yql.Xml
-import Data.List
+import Data.List hiding (insert)
 import Data.Char
-import Network.OAuth.Http.Request
+import Network.OAuth.Http.Request hiding (insert)
 import Network.OAuth.Http.Response
 import Control.Monad
 
@@ -95,6 +96,7 @@ data Function = Local { name :: String
 data Statement = SELECT [String] String (Maybe Where) [Function]
                | DESC String [Function]
                | UPDATE [(String,Value)] String (Maybe Where) [Function]
+               | INSERT [(String,Value)] String [Function]
                deriving (Eq)
 
 -- | Local functions that may change a given yql query
@@ -145,9 +147,9 @@ pipeline l (f:fs) = case (link l (name f) (args f))
                        Just ex -> liftM (ex `Seq`) (pipeline l fs)
 
 -- | Extracts the local functions from the statement and creates a pipeline.
-resolve :: (Monad m, Linker l) => l -> Statement -> m Exec
-resolve l stmt = let fs = filter local (functions stmt)
-                 in pipeline l fs
+ld :: (Monad m, Linker l) => l -> Statement -> m Exec
+ld l stmt = let fs = filter local (functions stmt)
+            in pipeline l fs
 
 -- | Listen to parser events to build Statement type.
 builder :: ParserEvents String Value Where Function Statement
@@ -158,7 +160,7 @@ builder = ParserEvents { onIdentifier = id
                        , onSelect     = SELECT
                        , onUpdate     = UPDATE
                        , onDelete     = undefined
-                       , onInsert     = undefined
+                       , onInsert     = INSERT
                        , onDesc       = DESC
                        , onEqExpr     = OpEq
                        , onInExpr     = OpIn
@@ -182,6 +184,11 @@ update :: Statement -> Bool
 update (UPDATE _ _ _ _) = True
 update _                = False
 
+-- | Test if the statement is a insert statement
+insert :: Statement -> Bool
+insert (INSERT _ _ _) = True
+insert _              = False
+
 -- | Test if the function is a local function
 local :: Function -> Bool
 local (Local _ _) = True
@@ -197,6 +204,7 @@ tables :: Statement -> [String]
 tables (SELECT _ t _ _) = [t]
 tables (DESC t _)       = [t]
 tables (UPDATE _ t _ _) = [t]
+tables (INSERT _ t _)   = [t]
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
@@ -206,6 +214,7 @@ usingMe stmt = case stmt
                   (DESC _ _)       -> False
                   (UPDATE c _ w _) -> Just True == fmap findMe w
                                       || any (MeValue==) (map snd c)
+                  (INSERT c _ _)   -> any (MeValue==) (map snd c)
   where findMe (_ `OpEq` v)    = v == MeValue
         findMe (_ `OpIn` vs)   = any (==MeValue) vs
         findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
@@ -216,6 +225,7 @@ functions :: Statement -> [Function]
 functions (SELECT _ _ _ f) = f
 functions (DESC _ f)       = f
 functions (UPDATE _ _ _ f) = f
+functions (INSERT _ _ f)   = f
 
 showStmt :: Statement -> String
 showStmt stmt = case stmt
@@ -237,6 +247,16 @@ showStmt stmt = case stmt
                                                 ++ whereString whre
                                                 ++ funcString func
                                                 ++ ";"
+                   INSERT set tbl func       -> "INSERT INTO "
+                                                ++ tbl
+                                                ++ " ("
+                                                ++ intercalate "," (map fst set)
+                                                ++ ") VALUES ("
+                                                ++ intercalate "," (map (showValue . snd) set)
+                                                ++ ")"
+                                                ++ funcString func
+                                                ++ ";"
+
   where funcString func | null func = ""
                         | otherwise = " | " ++ intercalate " | " (map show func)
         

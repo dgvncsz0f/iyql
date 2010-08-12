@@ -52,7 +52,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy as B
 import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer hiding (application)
-import Network.OAuth.Http.Request
+import Network.OAuth.Http.Request hiding (insert)
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
 
@@ -110,12 +110,14 @@ yqlRequest stmt d = emptyRequest { ssl        = https d
           | otherwise = 80
 
         httpMethod | update stmt = PUT
+                   | insert stmt = PUT
                    | otherwise   = GET
 
         preparedStmt = case stmt
                        of (SELECT c t w f) -> SELECT c t w (filter remote f)
                           (DESC t _)       -> DESC t []
                           (UPDATE c t w f) -> UPDATE c t w (filter remote f)
+                          (INSERT c t f)   -> INSERT c t (filter remote f)
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
@@ -130,9 +132,9 @@ class Yql y where
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
   execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
-  execute y l stmt = do mkRequest   <- fmap execBefore (resolve l stmt)
-                        mkResponse  <- fmap execAfter (resolve l stmt)
-                        mkOutput    <- fmap execTransform (resolve l stmt)
+  execute y l stmt = do mkRequest   <- fmap execBefore (ld l stmt)
+                        mkResponse  <- fmap execAfter (ld l stmt)
+                        mkOutput    <- fmap execTransform (ld l stmt)
                         tableDesc   <- descTable (findWithDefault ("env","store://datatables.org/alltableswithkeys") . qString . mkRequest $ emptyRequest)
                         response    <- lift (runOAuth $ do credentials y (security tableDesc)
                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") ((mkRequest $ myRequest tableDesc) { host = endpoint y } ))

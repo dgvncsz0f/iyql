@@ -47,7 +47,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onMeValue    :: v
                                            , onSelect     :: [i] -> i -> Maybe w -> [f] -> s
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
-                                           , onInsert     :: [(i,v)] -> i -> s
+                                           , onInsert     :: [(i,v)] -> i -> [f] -> s
                                            , onDelete     :: i -> Maybe w -> s
                                            , onDesc       :: i -> [f] -> s
                                            , onEqExpr     :: i -> v -> w
@@ -64,9 +64,10 @@ parseYql :: String -> ParserEvents i v w f s -> Either ParseError s
 parseYql input e = case tokStream
                    of Left err     -> Left err
                       Right input_ -> runParser parseYql_ () "stdin" input_
-  where parseYql_ = parseSelect e
-                    <|> parseDesc e
+  where parseYql_ = parseDesc e 
+                    <|> parseSelect e
                     <|> parseUpdate e
+                    <|> parseInsert e
 
         tokStream = runParser scan "" "stdin" input
 
@@ -146,6 +147,22 @@ parseUpdate e = do keyword (=="UPDATE")
                       keyword (=="=")
                       v <- parseValue e
                       return (k,v)
+
+parseInsert :: ParserEvents i v w f s -> YqlParser s
+parseInsert e = do keyword (=="INSERT")
+                   keyword (=="INTO")
+                   t <- parseIdentifier e
+                   keyword (=="(")
+                   c <- parseIdentifier e `sepBy` keyword (==",")
+                   keyword (==")")
+                   keyword (=="VALUES")
+                   keyword (=="(")
+                   v <- parseValue e `sepBy` keyword (==",")
+                   keyword (==")")
+                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
+                        <|> return []
+                   keyword (==";")
+                   return (onInsert e (zip c v) t f)
 
 parseIdentifier :: ParserEvents i v w f s -> YqlParser i
 parseIdentifier e = fmap (onIdentifier e) symbol_

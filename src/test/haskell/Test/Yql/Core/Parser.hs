@@ -59,6 +59,9 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test18
                                 , test19
                                 , test20
+                                , test21
+                                , test22
+                                , test23
                                 ]
         ]
 
@@ -133,6 +136,15 @@ test19 = testCase "update statements with where clause and multiple fields" $
 
 test20 = testCase "update statements with functions" $ 
          do eq "UPDATE foobar SET foo=\"bar\" WHERE guid=me | .json();" (runYqlParser_ "update foobar set foo='bar' where guid=me | .json();")
+            
+test21 = testCase "insert statements without functions and single field" $
+         do eq "INSERT INTO foobar (foo) VALUES (\"0\");" (runYqlParser_ "insert into foobar (foo) values ('0');")
+
+test22 = testCase "insert statements without functions and multiple fields" $
+         do eq "INSERT INTO foobar (f,o,o) VALUES (0,1,\"2\");" (runYqlParser_ "insert into foobar (f,o,o) values (0,1,'2');")
+
+test23 = testCase "insert statements with functions" $
+         do eq "INSERT INTO foobar (foo) VALUES (\"0\") | .iyql();" (runYqlParser_ "insert into foobar (foo) values ('0') | .iyql();")
 
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
@@ -146,7 +158,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onMeValue    = "me"
                              , onSelect     = mkSelect
                              , onUpdate     = mkUpdate
-                             , onInsert     = undefined
+                             , onInsert     = mkInsert
                              , onDelete     = undefined
                              , onDesc       = mkDesc
                              , onEqExpr     = mkEqExpr
@@ -163,6 +175,8 @@ stringBuilder = ParserEvents { onIdentifier = id
 
         mkUpdate c t Nothing f  = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ showFunction f ++ ";"
         mkUpdate c t (Just w) f = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        
+        mkInsert c t f = "INSERT INTO " ++ t ++ " (" ++ intercalate "," (map fst c) ++ ") VALUES (" ++ intercalate "," (map snd c) ++ ")" ++ showFunction f ++ ";"
 
         mkDesc t f = "DESC " ++ t ++ showFunction f ++ ";"
 

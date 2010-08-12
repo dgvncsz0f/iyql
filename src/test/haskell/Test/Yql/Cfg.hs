@@ -48,11 +48,15 @@ test2 = testCase "testing parseCfg ignores comments" $
 
 test3 = testCase "testing parseCfg ignores spaces" $
         do eq (fromList [("foo","bar")]) (parseCfg "\n\n   \nfoo: bar\n\n\n")
+
+test4 = testCase "parseCfg ignores comments with -- " $
+        do eq (fromList [("foo","bar")]) (parseCfg "-- foo -- bar --\n\nfoo:bar-- another -- comment")
            
 suite :: [Test]
 suite = [ testGroup "Cfg.hs" [ test0
                              , test1
                              , test2
                              , test3
+                             , test4
                              ]
         ]

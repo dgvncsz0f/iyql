@@ -59,7 +59,7 @@ $ sudo port install curl
 Install the following dependencies using "Cabal":http://www.haskell.org/cabal/:
 
 <pre><code>
-$ cabal install hoauth
+$ cabal install hoauth (>= 0.2.5)
 $ cabal install xml
 $ cabal install test-framework-hunit
 </code></pre>
@@ -68,7 +68,7 @@ h3. 5.2. Install dependencies - Debian
 
 <pre><code>
 $ sudo apt-get install cabal-install libghc6-curl-dev libghc6-parsec2-dev libghc6-haskeline-dev
-$ cabal install hoauth
+$ cabal install hoauth (>= 0.2.5)
 $ cabal install xml
 $ cabal install test-framework-hunit
 </code></pre>
@@ -81,3 +81,18 @@ $ sudo make install
 </code></pre>
 
 _* "make install" will copy the "iyql" binary to your /usr/local/bin directory._
+
+h2. 6. Using
+
+When iyql is started it attempts to read the file $HOME/.iyql/cfg. This file should contains the oauth credentials (consumer secret and consumer key) in order to execute three legged oauth requests. Following there is an example of this file:
+<pre><code>
+-- Lines starting with -- are considered comments
+-- Attributes keys are strings with any character but :
+-- Attributes values are any strings but \n
+
+-- Refer to http://developer.yahoo.com/dashboard/ in order to create/read yours keys
+oauth_consumer_key: my_consumer_key
+oauth_consumer_sec: my_consumer_secret
+</code></pre>
+
+This file is optional. However, without this you will only be able to perform unauthenticated requests (tables that contains security="ANY").

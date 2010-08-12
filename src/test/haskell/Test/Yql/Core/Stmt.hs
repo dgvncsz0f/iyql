@@ -59,6 +59,9 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test17
                               , test18
                               , test19
+                              , test20
+                              , test21
+                              , test22
                               ]
         ]
 
@@ -113,15 +116,15 @@ test11 = testCase "pipeline generates error when function is not found" $
          do ok (isNothing $ pipeline () [Local "foo" []])
             ok (isJust $ pipeline () [])
 
-test12 = testCase "resolve [transform] is in correct order" $
-         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (resolve myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
+test12 = testCase "ld [transform] is in correct order" $
+         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
   where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
                    , ("bar", const (Just (Transform ("bar"++))))
                    ] :: [(String,[(String,Value)] -> Maybe Exec)]
 
-test13 = testCase "resolve generates error when function is not found" $
-         do ok (isNothing $ resolve () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
-            ok (isJust $ resolve () (SELECT ["*"] "foobar" Nothing []))
+test13 = testCase "ld generates error when function is not found" $
+         do ok (isNothing $ ld () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
+            ok (isJust $ ld () (SELECT ["*"] "foobar" Nothing []))
 
 test14 = testCase "show desc produces correct result" $
          do eq ("DESC foobar;") (show $ DESC "foobar" [])
@@ -164,3 +167,15 @@ test19 = testCase "read update statements produces the correct type" $
          do eq (UPDATE [("foo",TxtValue "bar")] "foobar" Nothing []) (read "update foobar set foo='bar';")
             eq (UPDATE [("foo",TxtValue "bar"),("bar",TxtValue "foo")] "foobar" (Just $ "guid" `OpEq` MeValue) []) (read "update foobar set foo='bar', bar='foo' where guid=me;")
             eq (UPDATE [("foo",TxtValue "bar")] "foobar" (Just $ "guid" `OpEq` MeValue) [Local "json" []]) (read "update foobar set foo='bar' where guid=me | .json();")
+
+test20 = testCase "update returns true for update stmts" $
+         do ok (update $ UPDATE [] "" Nothing [])
+
+test21 = testCase "read insert statements produces the correct type" $ 
+         do eq (INSERT [("foo",TxtValue "bar")] "foobar" []) (read "insert into foobar (foo) VALUES ('bar');")
+            eq (INSERT [("foo",NumValue "7")] "foobar" [Remote "iyql" []]) (read "insert into foobar (foo) values (7) | iyql();")
+            eq (INSERT [("a",TxtValue "0"),("b",TxtValue "1")] "foobar" []) (read "insert into foobar (a,b) values ('0','1');")
+
+test22 = testCase "show produces the correct stmt for updates" $
+         do eq ("INSERT INTO foobar (foo) VALUES (\"bar\");") (show $ INSERT [("foo",TxtValue "bar")] "foobar" [])
+            eq ("INSERT INTO foobar (a,b) VALUES (0,1);") (show $ INSERT [("a",NumValue "0"),("b",NumValue "1")] "foobar" [])
