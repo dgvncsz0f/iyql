@@ -28,7 +28,6 @@ module Main where
 
 import System.Console.Haskeline
 import System.FilePath
-import System.Directory
 import Yql.Core.Backend
 import Yql.UI.Cli
 import Yql.Cfg

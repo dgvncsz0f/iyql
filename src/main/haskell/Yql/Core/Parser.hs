@@ -46,7 +46,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onNumValue   :: String -> v
                                            , onMeValue    :: v
                                            , onSelect     :: [i] -> i -> Maybe w -> [f] -> s
-                                           , onUpdate     :: [(i,v)] -> i -> Maybe w -> s
+                                           , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
                                            , onInsert     :: [(i,v)] -> i -> s
                                            , onDelete     :: i -> Maybe w -> s
                                            , onDesc       :: i -> [f] -> s
@@ -66,6 +66,7 @@ parseYql input e = case tokStream
                       Right input_ -> runParser parseYql_ () "stdin" input_
   where parseYql_ = parseSelect e
                     <|> parseDesc e
+                    <|> parseUpdate e
 
         tokStream = runParser scan "" "stdin" input
 
@@ -126,6 +127,25 @@ parseSelect e = do keyword (=="SELECT")
                    return (onSelect e c t w f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
+
+parseUpdate :: ParserEvents i v w f s -> YqlParser s
+parseUpdate e = do keyword (=="UPDATE")
+                   t <- parseIdentifier e
+                   keyword (=="SET")
+                   c <- parseSet `sepBy` keyword (==",")
+                   w <- whereClause
+                        <|> return Nothing
+                   f <- (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))
+                        <|> return []
+                   keyword (==";")
+                   return (onUpdate e c t w f)
+  where whereClause = do keyword (=="WHERE")
+                         fmap Just (parseWhere e)
+        
+        parseSet = do k <- parseIdentifier e
+                      keyword (=="=")
+                      v <- parseValue e
+                      return (k,v)
 
 parseIdentifier :: ParserEvents i v w f s -> YqlParser i
 parseIdentifier e = fmap (onIdentifier e) symbol_

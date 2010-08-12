@@ -54,6 +54,11 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test13
                                 , test14
                                 , test15
+                                , test16
+                                , test17
+                                , test18
+                                , test19
+                                , test20
                                 ]
         ]
 
@@ -114,6 +119,21 @@ test14 = testCase "desc statements" $
 test15 = testCase "desc statements allow only local filters" $
          do eq "parse error" (runYqlParser_ "desc iyql | foobar();")
 
+test16 = testCase "update statements without where and single field" $ 
+         do eq "UPDATE foobar SET foo=\"bar\";" (runYqlParser_ "update foobar set foo=\"bar\";")
+
+test17 = testCase "update statements without where and multiple fields" $ 
+         do eq "UPDATE foobar SET foo=\"bar\",bar=\"foo\",foobar=0;" (runYqlParser_ "update foobar set foo='bar' , bar='foo', foobar=0;")
+
+test18 = testCase "update statements with where clause and single field" $ 
+         do eq "UPDATE foobar SET foo=\"bar\" WHERE id=0 AND guid=me;" (runYqlParser_ "update foobar set foo='bar' where id=0 and guid=me;")
+
+test19 = testCase "update statements with where clause and multiple fields" $ 
+         do eq "UPDATE foobar SET foo=\"bar\",bar=\"foo\",foobar=0 WHERE guid=me AND id=0;" (runYqlParser_ "update foobar set foo='bar' , bar='foo', foobar=0 where guid=me and id=0;")
+
+test20 = testCase "update statements with functions" $ 
+         do eq "UPDATE foobar SET foo=\"bar\" WHERE guid=me | .json();" (runYqlParser_ "update foobar set foo='bar' where guid=me | .json();")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -125,7 +145,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onNumValue   = id
                              , onMeValue    = "me"
                              , onSelect     = mkSelect
-                             , onUpdate     = undefined
+                             , onUpdate     = mkUpdate
                              , onInsert     = undefined
                              , onDelete     = undefined
                              , onDesc       = mkDesc
@@ -140,6 +160,9 @@ stringBuilder = ParserEvents { onIdentifier = id
 
         mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
         mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
+
+        mkUpdate c t Nothing f  = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ showFunction f ++ ";"
+        mkUpdate c t (Just w) f = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ " WHERE " ++ w ++ showFunction f ++ ";"
 
         mkDesc t f = "DESC " ++ t ++ showFunction f ++ ";"
 

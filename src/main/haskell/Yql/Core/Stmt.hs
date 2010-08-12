@@ -37,6 +37,7 @@ module Yql.Core.Stmt
        , Linker(..)
          -- * Query
        , select
+       , update
        , desc
        , local
        , remote
@@ -64,7 +65,6 @@ import Yql.Core.Parser
 import Yql.Xml
 import Data.List
 import Data.Char
-import Data.Maybe
 import Network.OAuth.Http.Request
 import Network.OAuth.Http.Response
 import Control.Monad
@@ -94,6 +94,7 @@ data Function = Local { name :: String
 -- | The different statements supported.
 data Statement = SELECT [String] String (Maybe Where) [Function]
                | DESC String [Function]
+               | UPDATE [(String,Value)] String (Maybe Where) [Function]
                deriving (Eq)
 
 -- | Local functions that may change a given yql query
@@ -155,7 +156,7 @@ builder = ParserEvents { onIdentifier = id
                        , onNumValue   = NumValue
                        , onMeValue    = MeValue
                        , onSelect     = SELECT
-                       , onUpdate     = undefined
+                       , onUpdate     = UPDATE
                        , onDelete     = undefined
                        , onInsert     = undefined
                        , onDesc       = DESC
@@ -177,6 +178,10 @@ desc :: Statement -> Bool
 desc (DESC _ _) = True
 desc _          = False
 
+update :: Statement -> Bool
+update (UPDATE _ _ _ _) = True
+update _                = False
+
 -- | Test if the function is a local function
 local :: Function -> Bool
 local (Local _ _) = True
@@ -191,6 +196,7 @@ remote _            = False
 tables :: Statement -> [String]
 tables (SELECT _ t _ _) = [t]
 tables (DESC t _)       = [t]
+tables (UPDATE _ t _ _) = [t]
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
@@ -198,6 +204,8 @@ usingMe :: Statement -> Bool
 usingMe stmt = case stmt
                of (SELECT _ _ w _) -> Just True == fmap findMe w
                   (DESC _ _)       -> False
+                  (UPDATE c _ w _) -> Just True == fmap findMe w
+                                      || any (MeValue==) (map snd c)
   where findMe (_ `OpEq` v)    = v == MeValue
         findMe (_ `OpIn` vs)   = any (==MeValue) vs
         findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
@@ -207,6 +215,7 @@ usingMe stmt = case stmt
 functions :: Statement -> [Function]
 functions (SELECT _ _ _ f) = f
 functions (DESC _ f)       = f
+functions (UPDATE _ _ _ f) = f
 
 showStmt :: Statement -> String
 showStmt stmt = case stmt
@@ -218,11 +227,21 @@ showStmt stmt = case stmt
                                                 ++ intercalate "," cols
                                                 ++ " FROM "
                                                 ++ tbl
-                                                ++ fromMaybe "" (fmap ((" WHERE "++).show) whre)
+                                                ++ whereString whre
+                                                ++ funcString func
+                                                ++ ";"
+                   UPDATE set tbl whre func  -> "UPDATE "
+                                                ++ tbl
+                                                ++ " SET "
+                                                ++ intercalate "," (map (\(k,v) -> k++"="++showValue v) set)
+                                                ++ whereString whre
                                                 ++ funcString func
                                                 ++ ";"
   where funcString func | null func = ""
                         | otherwise = " | " ++ intercalate " | " (map show func)
+        
+        whereString Nothing  = ""
+        whereString (Just w) = " WHERE "++ (show w)
 
 readStmt :: String -> Either ParseError Statement
 readStmt = flip parseYql builder

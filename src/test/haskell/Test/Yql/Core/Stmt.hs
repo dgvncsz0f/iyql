@@ -38,6 +38,30 @@ import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
+suite :: [Test]
+suite = [ testGroup "Stmt.hs" [ test0
+                              , test1
+                              , test2
+                              , test3
+                              , test4
+                              , test5
+                              , test6
+                              , test7
+                              , test8
+                              , test9
+                              , test10
+                              , test11
+                              , test12
+                              , test13
+                              , test14
+                              , test15
+                              , test16
+                              , test17
+                              , test18
+                              , test19
+                              ]
+        ]
+
 test0 = testCase "show select * without where produces correct stmt" $
         eq "SELECT * FROM iyql;" (show $ SELECT ["*"] "iyql" Nothing [])
 
@@ -131,24 +155,12 @@ test17 = testCase "test readDescXml extracts attributes" $
         xml2 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><query xmlns:yahoo=\"http://www.yahooapis.com/v1/base.rng\"    yahoo:count=\"1\" yahoo:created=\"2010-08-09T04:08:39Z\" yahoo:lang=\"en-US\">    <results>        <table name=\"meme.info\" security=\"USER\">            <meta>                <author>Yahoo! Inc.</author>                <documentationURL>http://developer.yahoo.com/meme/</documentationURL>                <sampleQuery>SELECT * FROM meme.info WHERE owner_guid=me</sampleQuery>            </meta>            <request>                <select>                    <key name=\"owner_guid\" type=\"xs:string\"/>                    <key name=\"name\" type=\"xs:string\"/>                </select>            </request>        </table>    </results></query>"
         xml3 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><query xmlns:yahoo=\"http://www.yahooapis.com/v1/base.rng\"    yahoo:count=\"1\" yahoo:created=\"2010-08-09T04:08:39Z\" yahoo:lang=\"en-US\">    <results>        <table name=\"meme.info\" security=\"ANY\" https=\"true\">            <meta>                <author>Yahoo! Inc.</author>                <documentationURL>http://developer.yahoo.com/meme/</documentationURL>                <sampleQuery>SELECT * FROM meme.info WHERE owner_guid=me</sampleQuery>            </meta>            <request>                <select>                    <key name=\"owner_guid\" type=\"xs:string\"/>                    <key name=\"name\" type=\"xs:string\"/>                </select>            </request>        </table>    </results></query>"
 
-suite :: [Test]
-suite = [ testGroup "Stmt.hs" [ test0
-                              , test1
-                              , test2
-                              , test3
-                              , test4
-                              , test5
-                              , test6
-                              , test7
-                              , test8
-                              , test9
-                              , test10
-                              , test11
-                              , test12
-                              , test13
-                              , test14
-                              , test15
-                              , test16
-                              , test17
-                              ]
-        ]
+test18 = testCase "show produces the correct stmt for updates" $ 
+         do eq ("UPDATE foobar SET foo=\"bar\";") (show $ UPDATE [("foo",TxtValue "bar")] "foobar" Nothing [])
+            eq ("UPDATE foobar SET f=0,o=2,o=3 WHERE a=0 AND b=1;") (show $ UPDATE [("f",NumValue "0"),("o",NumValue "2"),("o",NumValue "3")] "foobar" (Just $ ("a" `OpEq` NumValue "0") `OpAnd` ("b" `OpEq` NumValue "1")) [])
+            eq ("UPDATE foobar SET foo=\"bar\" WHERE bar=\"foo\" | .json();") (show $ UPDATE [("foo",TxtValue "bar")] "foobar" (Just $ "bar" `OpEq` TxtValue "foo") [Local "json" []])
+
+test19 = testCase "read update statements produces the correct type" $ 
+         do eq (UPDATE [("foo",TxtValue "bar")] "foobar" Nothing []) (read "update foobar set foo='bar';")
+            eq (UPDATE [("foo",TxtValue "bar"),("bar",TxtValue "foo")] "foobar" (Just $ "guid" `OpEq` MeValue) []) (read "update foobar set foo='bar', bar='foo' where guid=me;")
+            eq (UPDATE [("foo",TxtValue "bar")] "foobar" (Just $ "guid" `OpEq` MeValue) [Local "json" []]) (read "update foobar set foo='bar' where guid=me | .json();")

@@ -98,6 +98,7 @@ yqlRequest :: Statement -> Description -> Request
 yqlRequest stmt d = emptyRequest { ssl        = https d
                                  , port       = portNumber
                                  , pathComps  = yqlPath
+                                 , method     = httpMethod
                                  , qString    = fromList [("q",show preparedStmt),("env","store://datatables.org/alltableswithkeys")]
                                  }
   where yqlPath
@@ -108,9 +109,13 @@ yqlRequest stmt d = emptyRequest { ssl        = https d
           | https d   = 443
           | otherwise = 80
 
+        httpMethod | update stmt = PUT
+                   | otherwise   = GET
+
         preparedStmt = case stmt
                        of (SELECT c t w f) -> SELECT c t w (filter remote f)
                           (DESC t _)       -> DESC t []
+                          (UPDATE c t w f) -> UPDATE c t w (filter remote f)
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
