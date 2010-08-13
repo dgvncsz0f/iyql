@@ -37,7 +37,7 @@ module Yql.Core.Backend
        , fileLoad
        ) where
 
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Core.Ldd
 import Yql.Core.Session
 import Yql.Xml
@@ -93,7 +93,7 @@ emptyRequest = R.ReqHttp { R.version    = R.Http11
                          , R.reqPayload = B.empty
                          }
 
-yqlRequest :: Statement -> Description -> R.Request
+yqlRequest :: Expression -> Description -> R.Request
 yqlRequest stmt d = emptyRequest { R.ssl        = https d
                                  , R.port       = portNumber
                                  , R.pathComps  = yqlPath
@@ -119,6 +119,7 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
                           (UPDATE c t w f) -> UPDATE c t w (filter remote f)
                           (INSERT c t f)   -> INSERT c t (filter remote f)
                           (DELETE t w f)   -> DELETE t w (filter remote f)
+                          (SHOWTABLES f)   -> SHOWTABLES (filter remote f)
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
@@ -132,7 +133,7 @@ class Yql y where
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
-  execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Statement -> OutputT m String
+  execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Expression -> OutputT m String
   execute y l stmt = do mkRequest   <- fmap execBefore (ld l stmt)
                         mkResponse  <- fmap execAfter (ld l stmt)
                         mkOutput    <- fmap execTransform (ld l stmt)
@@ -142,9 +143,10 @@ class Yql y where
                         return $ mkOutput (toString (mkResponse response))
 
     where descTable env = case stmt
-                          of _ | desc stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
-                               | usingMe stmt -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
-                               | otherwise    -> fmap (foldr1 joinDesc) (mapM (flip (executeDesc y) env) (tables stmt))
+                          of _ | desc stmt       -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
+                               | usingMe stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
+                               | showTables stmt -> return (Table "<<dummy>>" Any False)
+                               | otherwise       -> fmap (foldr1 joinDesc) (mapM (flip (executeDesc y) env) (tables stmt))
             where joinDesc (Table _ sec0 ssl0) (Table _ sec1 ssl1) = Table "<<many>>" (max sec0 sec1) (ssl0 || ssl1)
 
           myRequest = yqlRequest stmt

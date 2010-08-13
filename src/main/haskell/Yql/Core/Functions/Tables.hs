@@ -28,7 +28,7 @@ module Yql.Core.Functions.Tables
        ( tablesTransform
        ) where
 
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Xml
 import Data.List
 import qualified Data.Map as M

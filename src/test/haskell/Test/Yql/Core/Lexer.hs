@@ -69,6 +69,8 @@ test0 = testCase "keyword tokens" $
            eq (TkKey "INTO")    (scanToken1 "into")
            eq (TkKey "ME")      (scanToken1 "me")
            eq (TkKey "FROM")    (scanToken1 "from")
+           eq (TkKey "SHOW")    (scanToken1 "SHOW")
+           eq (TkKey "TABLES")  (scanToken1 "TABLES")
            eq (TkKey ";")       (scanToken1 ";")
            eq (TkKey ")")       (scanToken1 ")")
            eq (TkKey "(")       (scanToken1 "(")

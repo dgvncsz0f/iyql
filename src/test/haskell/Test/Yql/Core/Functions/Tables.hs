@@ -30,7 +30,7 @@ module Test.Yql.Core.Functions.Tables where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Core.Functions.Tables
 import Test.Framework
 import Test.Framework.Providers.HUnit

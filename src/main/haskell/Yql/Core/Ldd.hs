@@ -28,7 +28,7 @@ module Yql.Core.Ldd
        ( ldd
        ) where
 
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Core.Functions.Request
 import Yql.Core.Functions.Tables
 

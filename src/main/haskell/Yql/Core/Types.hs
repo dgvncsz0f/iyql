@@ -25,13 +25,13 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Stmt
+module Yql.Core.Types
        ( -- * Types
          Value(..)
        , Where(..)
        , Description(..)
        , Security(..)
-       , Statement(..)
+       , Expression(..)
        , Function(..)
        , Exec(..)
        , Linker(..)
@@ -46,6 +46,7 @@ module Yql.Core.Stmt
        , functions
        , usingMe
        , tables
+       , showTables
          -- * Parsing
        , builder
        , readStmt
@@ -94,12 +95,13 @@ data Function = Local { name :: String
               deriving (Eq)
 
 -- | The different statements supported.
-data Statement = SELECT [String] String (Maybe Where) [Function]
-               | DESC String [Function]
-               | UPDATE [(String,Value)] String (Maybe Where) [Function]
-               | INSERT [(String,Value)] String [Function]
-               | DELETE String (Maybe Where) [Function]
-               deriving (Eq)
+data Expression = SELECT [String] String (Maybe Where) [Function]
+                | DESC String [Function]
+                | UPDATE [(String,Value)] String (Maybe Where) [Function]
+                | INSERT [(String,Value)] String [Function]
+                | DELETE String (Maybe Where) [Function]
+                | SHOWTABLES [Function]
+                deriving (Eq)
 
 -- | Local functions that may change a given yql query
 data Exec = Before (Request -> Request)
@@ -149,12 +151,12 @@ pipeline l (f:fs) = case (link l (name f) (args f))
                        Just ex -> liftM (ex `Seq`) (pipeline l fs)
 
 -- | Extracts the local functions from the statement and creates a pipeline.
-ld :: (Monad m, Linker l) => l -> Statement -> m Exec
+ld :: (Monad m, Linker l) => l -> Expression -> m Exec
 ld l stmt = let fs = filter local (functions stmt)
             in pipeline l fs
 
--- | Listen to parser events to build Statement type.
-builder :: ParserEvents String Value Where Function Statement
+-- | Listen to parser events to build Expression type.
+builder :: ParserEvents String Value Where Function Expression
 builder = ParserEvents { onIdentifier = id
                        , onTxtValue   = TxtValue
                        , onNumValue   = NumValue
@@ -164,6 +166,7 @@ builder = ParserEvents { onIdentifier = id
                        , onDelete     = DELETE
                        , onInsert     = INSERT
                        , onDesc       = DESC
+                       , onShowTables = SHOWTABLES
                        , onEqExpr     = OpEq
                        , onInExpr     = OpIn
                        , onAndExpr    = OpAnd
@@ -173,26 +176,31 @@ builder = ParserEvents { onIdentifier = id
                        }
 
 -- | Test if the statement is a select statement
-select :: Statement -> Bool
+select :: Expression -> Bool
 select (SELECT _ _ _ _) = True
 select _                = False
 
 -- | Test if the statment is a desc statament
-desc :: Statement -> Bool
+desc :: Expression -> Bool
 desc (DESC _ _) = True
 desc _          = False
 
-update :: Statement -> Bool
+-- | Test if the statement is a show tables statement
+showTables :: Expression -> Bool
+showTables (SHOWTABLES _) = True
+showTables _              = False
+
+update :: Expression -> Bool
 update (UPDATE _ _ _ _) = True
 update _                = False
 
 -- | Test if the statement is a insert statement
-insert :: Statement -> Bool
+insert :: Expression -> Bool
 insert (INSERT _ _ _) = True
 insert _              = False
 
 -- | Test if the statement is a delete statement
-delete :: Statement -> Bool
+delete :: Expression -> Bool
 delete (DELETE _ _ _) = True
 delete _              = False
 
@@ -207,16 +215,17 @@ remote (Remote _ _) = True
 remote _            = False
 
 -- | Extracts all tables in use in the statement
-tables :: Statement -> [String]
+tables :: Expression -> [String]
 tables (SELECT _ t _ _) = [t]
 tables (DESC t _)       = [t]
 tables (UPDATE _ t _ _) = [t]
 tables (INSERT _ t _)   = [t]
 tables (DELETE t _ _)   = [t]
+tables (SHOWTABLES _)   = []
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
-usingMe :: Statement -> Bool
+usingMe :: Expression -> Bool
 usingMe stmt = case stmt
                of (SELECT _ _ w _) -> Just True == fmap findMe w
                   (DESC _ _)       -> False
@@ -224,19 +233,21 @@ usingMe stmt = case stmt
                                       || any (MeValue==) (map snd c)
                   (INSERT c _ _)   -> any (MeValue==) (map snd c)
                   (DELETE _ w _)   -> Just True == fmap findMe w
+                  (SHOWTABLES _)   -> False
   where findMe (_ `OpEq` v)    = v == MeValue
         findMe (_ `OpIn` vs)   = any (==MeValue) vs
         findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
         findMe (w0 `OpOr` w1)  = findMe w0 || findMe w1
 
-functions :: Statement -> [Function]
+functions :: Expression -> [Function]
 functions (SELECT _ _ _ f) = f
 functions (DESC _ f)       = f
 functions (UPDATE _ _ _ f) = f
 functions (INSERT _ _ f)   = f
 functions (DELETE _ _ f)   = f
+functions (SHOWTABLES f)   = f
 
-showStmt :: Statement -> String
+showStmt :: Expression -> String
 showStmt stmt = case stmt
                 of DESC tbl func             -> "DESC "
                                                 ++ tbl
@@ -270,6 +281,9 @@ showStmt stmt = case stmt
                                                 ++ whereString whre
                                                 ++ funcString func
                                                 ++ ";"
+                   SHOWTABLES func           -> "SHOW TABLES"
+                                                ++ funcString func
+                                                ++ ";"
 
   where funcString func | null func = ""
                         | otherwise = " | " ++ intercalate " | " (map show func)
@@ -277,7 +291,7 @@ showStmt stmt = case stmt
         whereString Nothing  = ""
         whereString (Just w) = " WHERE "++ (show w)
 
-readStmt :: String -> Either ParseError Statement
+readStmt :: String -> Either ParseError Expression
 readStmt = flip parseYql builder
 
 readDescXml :: XML -> Maybe Description
@@ -310,12 +324,12 @@ showValue (TxtValue v) = ("\""++ escape v ++"\"")
         escape (x:xs)   = x : escape xs
         escape []       = []
 
-instance Read Statement where
+instance Read Expression where
   readsPrec _ input = case (readStmt input)
                       of Left  _    -> []
                          Right stmt -> [(stmt,"")]
 
-instance Show Statement where
+instance Show Expression where
   showsPrec _ = showString . showStmt
 
 instance Show Function where

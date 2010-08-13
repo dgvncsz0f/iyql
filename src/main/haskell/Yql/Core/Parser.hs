@@ -49,6 +49,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
                                            , onInsert     :: [(i,v)] -> i -> [f] -> s
                                            , onDelete     :: i -> Maybe w -> [f] -> s
+                                           , onShowTables :: [f] -> s
                                            , onDesc       :: i -> [f] -> s
                                            , onEqExpr     :: i -> v -> w
                                            , onInExpr     :: i -> [v] -> w
@@ -56,7 +57,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onOrExpr     :: w -> w -> w
                                            , onLocalFunc  :: i -> [(i,v)] -> f
                                            , onRemoteFunc :: i -> [(i,v)] -> f
-                                         }
+                                           }
 
 -- | Parses an string, which must be a valid yql expression, using
 -- ParserEvents to create generic types.
@@ -69,7 +70,7 @@ parseYql input e = case tokStream
                     <|> parseUpdate e
                     <|> parseInsert e
                     <|> parseDelete e
-
+                    <|> parseShowTables e
         tokStream = runParser scan "" "stdin" input
 
 quoted :: YqlParser String
@@ -112,6 +113,14 @@ parseDesc e = do keyword (=="DESC")
                  keyword (==";")
                  tkEof
                  return (onDesc e t f)
+
+parseShowTables :: ParserEvents i v w f s -> YqlParser s
+parseShowTables e = do keyword (=="SHOW")
+                       keyword (=="TABLES")
+                       f <- parseFunctions e
+                       keyword (==";")
+                       tkEof
+                       return (onShowTables e f)
 
 parseSelect :: ParserEvents i v w f s -> YqlParser s
 parseSelect e = do keyword (=="SELECT")

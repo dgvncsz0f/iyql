@@ -31,7 +31,7 @@ module Test.Yql.Core.Backend where
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
 import Yql.Core.Session
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Core.Backend
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Response

@@ -28,7 +28,7 @@ module Yql.Core.Functions.Request
        ( yqlRequest
        ) where
 
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Network.OAuth.Http.Request
 
 -- | Change the format parameter

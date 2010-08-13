@@ -67,6 +67,8 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test26
                                 , test27
                                 , test28
+                                , test29
+                                , test30
                                 ]
         ]
 
@@ -124,8 +126,8 @@ test13 = testCase "select using custom offset/limit" $
 test14 = testCase "desc statements" $
          do eq "DESC iyql;" (runYqlParser_ "desc iyql;")
 
-test15 = testCase "desc statements allow only local filters" $
-         do eq "parse error" (runYqlParser_ "desc iyql | foobar();")
+test15 = testCase "desc statements allow remote filters" $
+         do eq "DESC iyql | foobar();" (runYqlParser_ "desc iyql | foobar();")
 
 test16 = testCase "update statements without where and single field" $ 
          do eq "UPDATE foobar SET foo=\"bar\";" (runYqlParser_ "update foobar set foo=\"bar\";")
@@ -166,6 +168,12 @@ test27 = testCase "delete statements with functions and single field" $
 test28 = testCase "delete statements with functions and multiple fields" $
          do eq "DELETE FROM foobar WHERE guid=me OR name=\"foo\" | .diagnostics();" (runYqlParser_ "delete from foobar where guid=me or name=\"foo\" | .diagnostics();")
 
+test29 = testCase "show tables statements without functions" $ 
+         do eq "SHOW TABLES;" (runYqlParser_ "show tables;")
+
+test30 = testCase "show tables statements with functions" $
+         do eq "SHOW TABLES | .iyql();" (runYqlParser_ "show tables | .iyql();")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -181,6 +189,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onInsert     = mkInsert
                              , onDelete     = mkDelete
                              , onDesc       = mkDesc
+                             , onShowTables = mkShowTables
                              , onEqExpr     = mkEqExpr
                              , onInExpr     = mkInExpr
                              , onAndExpr    = mkAndExpr
@@ -198,6 +207,8 @@ stringBuilder = ParserEvents { onIdentifier = id
         
         mkDelete t Nothing f  = "DELETE FROM " ++ t ++ showFunction f ++ ";"
         mkDelete t (Just w) f = "DELETE FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        
+        mkShowTables f = "SHOW TABLES" ++ showFunction f ++ ";"
         
         mkInsert c t f = "INSERT INTO " ++ t ++ " (" ++ intercalate "," (map fst c) ++ ") VALUES (" ++ intercalate "," (map snd c) ++ ")" ++ showFunction f ++ ";"
 

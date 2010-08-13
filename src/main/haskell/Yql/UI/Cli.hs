@@ -33,7 +33,7 @@ import Control.Monad.Trans
 import Data.Char
 import Yql.Core.Backend
 import Yql.Core.Parser
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Core.Ldd
 import qualified Yql.Version as V
 import Yql.UI.CLI.Options

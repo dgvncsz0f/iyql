@@ -25,13 +25,13 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Test.Yql.Core.Stmt where
+module Test.Yql.Core.Types where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
 import Data.Maybe
-import Yql.Core.Stmt
+import Yql.Core.Types
 import Yql.Xml
 import Control.Monad
 import Test.Framework
@@ -39,7 +39,7 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 suite :: [Test]
-suite = [ testGroup "Stmt.hs" [ test0
+suite = [ testGroup "Types.hs" [ test0
                               , test1
                               , test2
                               , test3
@@ -65,6 +65,8 @@ suite = [ testGroup "Stmt.hs" [ test0
                               , test23
                               , test24
                               , test25
+                              , test26
+                              , test27
                               ]
         ]
 
@@ -195,3 +197,12 @@ test24 = testCase "read delete statements produces the correct type" $
 
 test25 = testCase "delete returns true for delete stmts" $
          do ok (delete $ DELETE "" Nothing [])
+
+test26 = testCase "read show tables statements produces the correct type" $
+         do eq (SHOWTABLES []) (read "show tables;")
+            eq (SHOWTABLES [Local "iyql" []]) (read "show tables | .iyql();")
+            eq (SHOWTABLES [Local "iyql" [],Remote "iyql" []]) (read "show tables | .iyql() | iyql();")
+
+test27 = testCase "show produces the correct stmt for show tables" $
+         do eq ("SHOW TABLES;") (show $ SHOWTABLES [])
+            eq ("SHOW TABLES | .iyql();") (show $ SHOWTABLES [Local "iyql" []])
