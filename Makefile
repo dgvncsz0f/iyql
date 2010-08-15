@@ -37,9 +37,11 @@ clean:
 	$(FIND) src/test/haskell -name \*.hi -exec $(RM) {} \;
 	$(RM) -r dist
 
-dist/bin:
-	mkdir dist
-	mkdir dist/bin
+dist:
+	mkdir $(@)
+
+dist/bin: dist
+	mkdir $(@)
 
 $(MAIN_IYQL): src/main/haskell/iyql.hs $(MAINSRC) dist/bin
 	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)

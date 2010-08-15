@@ -3,3 +3,4 @@
 *.hi
 src/test/haskell/all_tests
 src/main/haskell/iyql
+dist
