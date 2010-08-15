@@ -26,5 +26,7 @@
 
 module Yql.Version where
 
-version :: String
-version = "0.0.1"
+import Data.Version
+
+version :: Version
+version = Version [0,0,1] ["alpha"]

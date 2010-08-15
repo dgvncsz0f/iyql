@@ -31,6 +31,7 @@ import System.Console.Haskeline
 import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
 import Data.Char
+import Data.Version
 import Yql.Core.Backend
 import Yql.Core.Parser
 import Yql.Core.Types
@@ -47,7 +48,7 @@ empty :: String -> Bool
 empty = all isSpace
 
 outputVersion :: InputT IO ()
-outputVersion = outputStrLn $ "iyql version " ++ V.version
+outputVersion = outputStrLn $ "iyql version " ++ showVersion V.version
 
 outputLicense :: InputT IO ()
 outputLicense = outputStrLn "This is free software. Enter .license to read it"

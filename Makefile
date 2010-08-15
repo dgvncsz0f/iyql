@@ -1,63 +1,49 @@
-SRCROOT=$(shell pwd)
+SRCROOT = $(shell pwd)
 
-MAINSRC=$(wildcard src/main/haskell/Yql/Core/*.hs \
-                   src/main/haskell/Yql/Core/Functions/*.hs \
-                   src/main/haskell/Yql/*.hs \
-                   src/main/haskell/Yql/UI/*.hs \
-                   src/main/haskell/Yql/UI/CLI/*.hs)
-MAINOBJ=$(addsuffix .o,$(basename $(MAINSRC)))
-MAINPRG_SRC=src/main/haskell/iyql.hs
-MAINPRG_OBJ=$(wildcard .o,$(basename $(MAINPRG_SRC)))
-MAINPRG=$(basename $(MAINPRG_SRC))
-
-TESTSRC=$(wildcard src/test/haskell/Test/*.hs \
-                   src/test/haskell/Test/Yql/Core/*.hs \
-                   src/test/haskell/Test/Yql/Core/Functions/*.hs \
-                   src/test/haskell/Test/Yql/*.hs \
-                   src/test/haskell/Test/Yql/UI/*.hs \
-                   src/test/haskell/Test/Yql/UI/CLI/*.hs)
-TESTOBJ=$(addsuffix .o,$(basename $(TESTSRC)))
-TESTPRG_SRC=src/test/haskell/all_tests.hs
-TESTPRG_OBJ=$(addsuffix .o,$(basename $(TESTPRG_SRC)))
-TESTPRG=$(basename $(TESTPRG_SRC))
-
-HC      = /usr/bin/ghc
-INSTALL = /usr/bin/install
-
-HCFLAGS =
 PREFIX  = /usr/local
 
-PREFIX=/usr/local
+TEST    = test
+RM      = rm -f
+FIND    = find
+INSTALL = install
 
+HC      = ghc
+HCFLAGS =
+
+MAIN_IYQL = dist/bin/iyql
+MAIN_SRC  = $(FIND) src/main/haskell/Yql -name \*.hs
+TEST_IYQL = dist/bin/test_iyql
+TEST_SRC  = $(FIND) src/test/haskell/Test/Yql -name \*.hs
 
 .PHONY: default
 default: compile
 
 .PHONY: compile
-compile: $(MAINOBJ) $(MAINPRG)
+compile: $(MAIN_IYQL)
 
 .PHONY: install
-install: $(MAINPRG)
-	$(INSTALL) -m 0755 $(MAINPRG) $(PREFIX)/bin
+install: compile
+	$(INSTALL) -m 0755 $(MAIN_IYQL) $(PREFIX)/bin
 
 .PHONY: test
-test: compile $(TESTPRG)
-	$(TESTPRG)
+test: $(TEST_IYQL)
+	$(TEST_IYQL)
 
 .PHONY: clean
 clean:
-	$(RM) $(shell find src/main/haskell -name "*.o")
-	$(RM) $(shell find src/main/haskell -name "*.hi")
-	$(RM) $(shell find src/test/haskell -name "*.o")
-	$(RM) $(shell find src/test/haskell -name "*.hi")
-	$(RM) $(TESTPRG) $(MAINPRG)
+	$(FIND) src/main/haskell -name \*.o -exec $(RM) {} \;
+	$(FIND) src/main/haskell -name \*.hi -exec $(RM) {} \;
+	$(FIND) src/test/haskell -name \*.o -exec $(RM) {} \;
+	$(FIND) src/test/haskell -name \*.hi -exec $(RM) {} \;
+	$(RM) -r dist
 
-$(TESTPRG): $(TESTPRG_SRC) $(MAINSRC) $(TESTSRC)
-$(MAINPRG): $(MAINPRG_SRC) $(MAINSRC)
+dist/bin:
+	mkdir dist
+	mkdir dist/bin
 
-.SUFFIXES: .o .hs
-.hs.o:
-	$(HC) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
+$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAINSRC) dist/bin
+	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)
 
-%: %.hs
-	$(HC) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
+$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAINSRC) $(TESTSRC) dist/bin
+	$(HC) -o $(@) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
+
