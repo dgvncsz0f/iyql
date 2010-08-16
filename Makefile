@@ -41,9 +41,9 @@ dist:
 dist/bin: dist
 	mkdir $(@)
 
-$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAINSRC) dist/bin
+$(MAIN_IYQL): src/main/haskell/iyql.hs dist/bin
 	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)
 
-$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAINSRC) $(TESTSRC) dist/bin
+$(TEST_IYQL): src/test/haskell/test_iyql.hs dist/bin
 	$(HC) -o $(@) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
 

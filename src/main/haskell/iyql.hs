@@ -26,7 +26,6 @@
 
 module Main where
 
-import System.Console.Haskeline
 import System.FilePath
 import Yql.Core.Backend
 import Yql.Core.Session
@@ -35,15 +34,9 @@ import Yql.Cfg
 import Network.OAuth.Consumer
 
 main :: IO ()
-main = do myCfg  <- fmap settings basedir
-          home   <- basedir
+main = do home   <- basedir
           config <- usrCfg
-          runInputT myCfg (iyql (backend home config))
-  where settings home = Settings { complete       = noCompletion
-                                 , historyFile    = Just (joinPath [home,".iyql_history"])
-                                 , autoAddHistory = False
-                                 }
-
-        backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) (FileStorage (joinPath [home,"oauth_token"]))
+          iyql (backend home config)
+  where backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) (FileStorage (joinPath [home,"oauth_token"]))
           where cfgCKey = tryCfg config "oauth_consumer_key" "no_ckey"
                 cfgCSec = tryCfg config "oauth_consumer_sec" "no_csec"

@@ -27,28 +27,21 @@
 module Yql.UI.Cli where
 
 import System
+import System.FilePath
 import System.Console.Haskeline
 import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
-import Data.Char
-import Data.Version
+import Yql.Version
+import Yql.Cfg (basedir)
 import Yql.Core.Backend
 import Yql.Core.Parser
 import Yql.Core.Types
 import Yql.Core.Ldd
-import qualified Yql.Version as V
-import Yql.UI.CLI.Options
-
-eol :: String -> Bool
-eol (x:xs) | x==';'    = all isSpace xs
-           | otherwise = eol xs
-eol []                 = False
-
-empty :: String -> Bool
-empty = all isSpace
+import Yql.UI.CLI.Input
+import qualified Yql.UI.CLI.Options as O
 
 outputVersion :: InputT IO ()
-outputVersion = outputStrLn $ "iyql version " ++ showVersion V.version
+outputVersion = outputStrLn $ "iyql version " ++ showVersion version
 
 outputLicense :: InputT IO ()
 outputLicense = outputStrLn "This is free software. Enter .license to read it"
@@ -57,43 +50,37 @@ outputHelp :: InputT IO ()
 outputHelp = do outputStrLn "Enter .help for instructions"
                 outputStrLn "Enter YQL statements terminated with a \";\""
 
-cont :: String -> InputT IO String
-cont prefix = do minput <- getInputLine " ...> "
-                 case minput
-                   of Nothing       -> return prefix
-                      Just input
-                        | eol input -> return (prefix ++" "++ input)
-                        | otherwise -> cont (prefix ++" "++ input)
-
-execYql :: Yql y => y -> String -> InputT IO String
+execYql :: Yql y => y -> String -> InputT IO ()
 execYql y input = case (parseYql input builder)
-                  of Left err   -> return (show err)
-                     Right stmt -> liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= return . either id id
+                  of Left err   -> outputStrLn (show err)
+                     Right stmt -> do output <- liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= return . either id id
+                                      outputStrLn output
 
-loop :: Yql y => y -> InputT IO ()
-loop y = do minput <- getInputLine "iyql> "
-            case minput
-              of Nothing         -> return ()
-                 Just ":quit"    -> return ()
-                 Just input
-                   | empty input -> loop y
-                   | eol input   -> do (execYql y input >>= outputStrLn)
-                                       loop y
-                   | otherwise   -> do (cont input >>= execYql y >>= outputStrLn)
-                                       loop y
+execCmd :: Yql y => y -> String -> InputT IO Bool
+execCmd _ ":quit" = return False
+execCmd _ cmd     = do outputStrLn (cmd ++ ": command not found")
+                       return True
 
-
-iyql :: Yql y => y -> InputT IO ()
-iyql y = do argv <- liftIO getArgs
-            case (getoptions argv)
+exec :: Yql y => y -> InputT IO ()
+exec y = do argv <- liftIO getArgs
+            case (O.getoptions argv)
               of Left errors   -> outputStrLn errors
                  Right actions -> runActions argv actions
   where runActions argv opts
-          | wantVersion opts  = outputVersion
-          | wantHelp opts     = outputStrLn $ usage argv
-          | wantExecStmt opts = let ExecStmt stmt = head . filter execStmt $ opts
-                                in execYql y stmt >>= outputStrLn
-          | otherwise         = do outputVersion
-                                   outputLicense
-                                   outputHelp
-                                   loop y
+          | O.wantVersion opts  = outputVersion
+          | O.wantHelp opts     = outputStrLn $ O.usage argv
+          | O.wantExecStmt opts = let O.ExecStmt stmt = head . filter O.execStmt $ opts
+                                  in execYql y stmt
+          | otherwise           = do outputVersion
+                                     outputLicense
+                                     outputHelp
+                                     loop (Handler (execCmd y) (execYql y))
+                                     return ()
+
+iyql :: Yql y => y -> IO ()
+iyql y = do myCfg  <- fmap settings basedir
+            runInputT myCfg (exec y)
+  where settings home = Settings { complete       = noCompletion
+                                 , historyFile    = Just $ joinPath [home,"history"]
+                                 , autoAddHistory = False
+                                 }
