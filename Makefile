@@ -2,8 +2,6 @@ SRCROOT = $(shell pwd)
 
 PREFIX  = /usr/local
 
-TEST    = test
-RM      = rm -f
 FIND    = find
 INSTALL = install
 
@@ -31,11 +29,11 @@ test: $(TEST_IYQL)
 
 .PHONY: clean
 clean:
-	$(FIND) src/main/haskell -name \*.o -exec $(RM) {} \;
-	$(FIND) src/main/haskell -name \*.hi -exec $(RM) {} \;
-	$(FIND) src/test/haskell -name \*.o -exec $(RM) {} \;
-	$(FIND) src/test/haskell -name \*.hi -exec $(RM) {} \;
-	$(RM) -r dist
+	$(FIND) src/main/haskell -name \*.o -exec rm -f {} \;
+	$(FIND) src/main/haskell -name \*.hi -exec rm -f {} \;
+	$(FIND) src/test/haskell -name \*.o -exec rm -f {} \;
+	$(FIND) src/test/haskell -name \*.hi -exec rm -f {} \;
+	rm -f -r dist
 
 dist:
 	mkdir $(@)
