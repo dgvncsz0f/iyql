@@ -31,7 +31,7 @@ module Yql.Core.Parser
        , AssertOperator(..)
        , SingleOperator(..)
        , ListOperator(..)
-       , Limit
+       , Limit(..)
        , ParseError
          -- * Parser
        , parseYql
@@ -43,6 +43,7 @@ import Yql.Core.Lexer
 
 type YqlParser a = GenParser Token () a
 
+-- | Limit in terms of (offset,amount)
 type Limit = (Integer,Integer)
 
 -- | Tests if column satisfies a given property

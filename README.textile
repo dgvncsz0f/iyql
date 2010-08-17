@@ -4,17 +4,19 @@ The purpose of this project is to implement a CLI (commend-line interface) for "
 
 h2. 1. Input
 
-There are two major modes of operation. The first one is the interactive one, which is started by default. Using libreadline, it reads one command at time, each command ending by ; (mandatory). This statement is parsed in order to determine which type of authentication is required -- either none, two legged or three legged. After the proper oauth token is acquired, the query is sent to yql and the result is shown to the user.
+There are two major modes of operation. The first one is the interactive one, which is started by default. Using haskeling [readline-like library], it reads one command at time, each command ending by ; (mandatory). This statement is parsed in order to determine which type of authentication is required [among other things] -- either none, two legged or three legged. After the proper oauth token is acquired, the query is sent to yql and the result is shown to the user.
 
-The other mode is the batch mode, which queries are read either from stdin or from an argument. This is most useful for piping data into the program or using iyql to feed other programs in the unix pipeline.
+The other mode is the batch mode, which queries are from an argument (-e). This is most useful for piping data in or using iyql to feed other programs in the pipeline.
 
 h2. 2. Output
 
-The idea is also parse the output and print it in a structured format, similar to what database interfaces do. However, the first release is planned to display the output as-is, and parsing and changing the output is scheduled for a second release.
+The default is printing the output as-is. The local functions .json() and .request() may also be used to change this to json. XMLs are automatically pretty printed, so you may expect it to be, et least, well indented.
 
 h2. 3. Local and Remote
 
-There will be local commands, that are useful to inspect the state of the program. Local commands will always be prefixed by the . character. For instance .whoami shows information about the oauth"token in use. These commands are processed locally and never sent to YQL. Everything not starting by `.' is considered to be a valid YQL statement, parsed and sent to YQL engine.
+Local functions starts by . (dot). Local functions are functions that either a) change the request, b) modify the response or c) transform the output. For instance, the .request() function allow you to change the request parameter, for instance, setting diagnostics on or changing the format to json. .json() and .diagnostics() are aliases to this function. The .tables() function reads the XML and attempt to display it in a tabular format, very similar to what sqlite3 does.
+
+There are also commands. Currently the only command implemented is :quit.
 
 h2. 4. Examples
 
