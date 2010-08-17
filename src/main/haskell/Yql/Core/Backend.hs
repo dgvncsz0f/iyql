@@ -114,12 +114,12 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
                    | otherwise   = R.GET
 
         preparedStmt = case stmt
-                       of (SELECT c t w f) -> SELECT c t w (filter remote f)
-                          (DESC t _)       -> DESC t []
-                          (UPDATE c t w f) -> UPDATE c t w (filter remote f)
-                          (INSERT c t f)   -> INSERT c t (filter remote f)
-                          (DELETE t w f)   -> DELETE t w (filter remote f)
-                          (SHOWTABLES f)   -> SHOWTABLES (filter remote f)
+                       of (SELECT c t w rl ll f) -> SELECT c t w rl ll (filter remote f)
+                          (DESC t _)             -> DESC t []
+                          (UPDATE c t w f)       -> UPDATE c t w (filter remote f)
+                          (INSERT c t f)         -> INSERT c t (filter remote f)
+                          (DELETE t w f)         -> DELETE t w (filter remote f)
+                          (SHOWTABLES f)         -> SHOWTABLES (filter remote f)
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where

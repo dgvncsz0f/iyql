@@ -69,8 +69,8 @@ test0 = testCase "keyword tokens" $
            eq (TkKey "INTO")    (scanToken1 "into")
            eq (TkKey "ME")      (scanToken1 "me")
            eq (TkKey "FROM")    (scanToken1 "from")
-           eq (TkKey "SHOW")    (scanToken1 "SHOW")
-           eq (TkKey "TABLES")  (scanToken1 "TABLES")
+           eq (TkKey "SHOW")    (scanToken1 "show")
+           eq (TkKey "TABLES")  (scanToken1 "tables")
            eq (TkKey ";")       (scanToken1 ";")
            eq (TkKey ")")       (scanToken1 ")")
            eq (TkKey "(")       (scanToken1 "(")
@@ -87,6 +87,8 @@ test0 = testCase "keyword tokens" $
            eq (TkKey "NULL")    (scanToken1 "null")
            eq (TkKey "LIKE")    (scanToken1 "like")
            eq (TkKey "MATCHES") (scanToken1 "matches")
+           eq (TkKey "LIMIT")   (scanToken1 "limit")
+           eq (TkKey "OFFSET")  (scanToken1 "offset")
 
 test1 = testCase "quoted string tokens" $
         do eq (TkStr "foobar")                (scanToken1 "'foobar'")

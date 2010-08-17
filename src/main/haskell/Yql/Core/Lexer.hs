@@ -117,6 +117,8 @@ mksym sym | uSym `elem` keyword = TkKey uSym
                             , "LIKE"
                             , "IS"
                             , "*"
+                            , "OFFSET"
+                            , "LIMIT"
                             ]
 
                   tkNum (x:xs) | x=='.'    = not (null xs) && all isDigit xs

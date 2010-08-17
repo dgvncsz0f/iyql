@@ -125,7 +125,8 @@ test12 = testCase "local and remote functions in the same query" $
          do eq "SELECT * FROM iyql | foo() | .bar();" (runYqlParser_ "select * from iyql | foo() | .bar();")
 
 test13 = testCase "select using remote limit/offset" $
-         do eq "SELECT * FROM iyql (0,10);" (runYqlParser_ "select * from iyql(0,10);")
+         do eq "SELECT * FROM iyql (7,13);" (runYqlParser_ "select * from iyql (7,13);")
+            eq "SELECT * FROM iyql (0,7);" (runYqlParser_ "select * from iyql (7);")
 
 test14 = testCase "desc statements" $
          do eq "DESC iyql;" (runYqlParser_ "desc iyql;")
@@ -179,7 +180,7 @@ test30 = testCase "show tables statements with functions" $
          do eq "SHOW TABLES | .iyql();" (runYqlParser_ "show tables | .iyql();")
 
 test31 = testCase "select statements with local limit" $
-         do eq "SELECT * FROM iyql LIMIT 10;" (runYqlParser_ "select * from iyql limit 10;")
+         do eq "SELECT * FROM iyql LIMIT 10 OFFSET 0;" (runYqlParser_ "select * from iyql limit 10;")
 
 test32 = testCase "select statements with local limit/offset" $
          do eq "SELECT * FROM iyql LIMIT 10 OFFSET 0;" (runYqlParser_ "select * from iyql limit 10 offset 0;")
@@ -197,6 +198,12 @@ newtype LexerToken = LexerToken (String,TokenT)
 
 showFunction [] = "";
 showFunction f  = " | " ++ intercalate " | " f;
+
+showRemoteLimit Nothing      = ""
+showRemoteLimit (Just (o,l)) = " ("++ show o ++","++ show l ++")"
+
+showLocalLimit Nothing      = ""
+showLocalLimit (Just (o,l)) = " LIMIT "++ show l ++" OFFSET "++ show o
 
 stringBuilder = ParserEvents { onIdentifier = id
                              , onTxtValue   = mkValue
@@ -218,8 +225,8 @@ stringBuilder = ParserEvents { onIdentifier = id
                              }
   where mkValue v = "\"" ++ v ++ "\""
 
-        mkSelect c t Nothing  f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showFunction f ++ ";"
-        mkSelect c t (Just w) f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ " WHERE " ++ w ++ showFunction f ++ ";"
+        mkSelect c t Nothing  rl ll f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showRemoteLimit rl ++ showLocalLimit ll ++ showFunction f ++ ";"
+        mkSelect c t (Just w) rl ll f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showRemoteLimit rl ++ " WHERE " ++ w ++ showLocalLimit ll ++ showFunction f ++ ";"
 
         mkUpdate c t Nothing f  = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ showFunction f ++ ";"
         mkUpdate c t (Just w) f = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ " WHERE " ++ w ++ showFunction f ++ ";"

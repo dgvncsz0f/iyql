@@ -106,7 +106,7 @@ data Function = Local { name :: String
               deriving (Eq)
 
 -- | The different statements supported.
-data Expression = SELECT [String] String (Maybe Where) [Function]
+data Expression = SELECT [String] String (Maybe Where) (Maybe Limit) (Maybe Limit) [Function]
                 | DESC String [Function]
                 | UPDATE [(String,Value)] String (Maybe Where) [Function]
                 | INSERT [(String,Value)] String [Function]
@@ -204,8 +204,8 @@ builder = ParserEvents { onIdentifier = id
 
 -- | Test if the statement is a select statement
 select :: Expression -> Bool
-select (SELECT _ _ _ _) = True
-select _                = False
+select (SELECT _ _ _ _ _ _) = True
+select _                    = False
 
 -- | Test if the statment is a desc statament
 desc :: Expression -> Bool
@@ -243,24 +243,24 @@ remote _            = False
 
 -- | Extracts all tables in use in the statement
 tables :: Expression -> [String]
-tables (SELECT _ t _ _) = [t]
-tables (DESC t _)       = [t]
-tables (UPDATE _ t _ _) = [t]
-tables (INSERT _ t _)   = [t]
-tables (DELETE t _ _)   = [t]
-tables (SHOWTABLES _)   = []
+tables (SELECT _ t _ _ _ _) = [t]
+tables (DESC t _)           = [t]
+tables (UPDATE _ t _ _)     = [t]
+tables (INSERT _ t _)       = [t]
+tables (DELETE t _ _)       = [t]
+tables (SHOWTABLES _)       = []
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
 usingMe :: Expression -> Bool
 usingMe stmt = case stmt
-               of (SELECT _ _ w _) -> Just True == fmap findMe w
-                  (DESC _ _)       -> False
-                  (UPDATE c _ w _) -> Just True == fmap findMe w
-                                      || any (MeValue==) (map snd c)
-                  (INSERT c _ _)   -> any (MeValue==) (map snd c)
-                  (DELETE _ w _)   -> Just True == fmap findMe w
-                  (SHOWTABLES _)   -> False
+               of (SELECT _ _ w _ _ _) -> Just True == fmap findMe w
+                  (DESC _ _)           -> False
+                  (UPDATE c _ w _)     -> Just True == fmap findMe w
+                                          || any (MeValue==) (map snd c)
+                  (INSERT c _ _)       -> any (MeValue==) (map snd c)
+                  (DELETE _ w _)       -> Just True == fmap findMe w
+                  (SHOWTABLES _)       -> False
   where findMe (_ `OpEq` v)         = v == MeValue
         findMe (_ `OpNe` v)         = v == MeValue
         findMe (_ `OpGe` v)         = v == MeValue
@@ -278,12 +278,12 @@ usingMe stmt = case stmt
         findMe (w0 `OpOr` w1)       = findMe w0 || findMe w1
 
 functions :: Expression -> [Function]
-functions (SELECT _ _ _ f) = f
-functions (DESC _ f)       = f
-functions (UPDATE _ _ _ f) = f
-functions (INSERT _ _ f)   = f
-functions (DELETE _ _ f)   = f
-functions (SHOWTABLES f)   = f
+functions (SELECT _ _ _ _ _ f) = f
+functions (DESC _ f)           = f
+functions (UPDATE _ _ _ f)     = f
+functions (INSERT _ _ f)       = f
+functions (DELETE _ _ f)       = f
+functions (SHOWTABLES f)       = f
 
 showStmt :: Expression -> String
 showStmt stmt = case stmt
@@ -291,13 +291,15 @@ showStmt stmt = case stmt
                                                 ++ tbl
                                                 ++ funcString func
                                                 ++ ";"
-                   SELECT cols tbl whre func -> "SELECT "
-                                                ++ intercalate "," cols
-                                                ++ " FROM "
-                                                ++ tbl
-                                                ++ whereString whre
-                                                ++ funcString func
-                                                ++ ";"
+                   SELECT cols tbl whre lim0 lim1 func -> "SELECT "
+                                                          ++ intercalate "," cols
+                                                          ++ " FROM "
+                                                          ++ tbl
+                                                          ++ showRemoteLimit lim0
+                                                          ++ whereString whre
+                                                          ++ showLocalLimit lim1
+                                                          ++ funcString func
+                                                          ++ ";"
                    UPDATE set tbl whre func  -> "UPDATE "
                                                 ++ tbl
                                                 ++ " SET "
@@ -328,6 +330,12 @@ showStmt stmt = case stmt
         
         whereString Nothing  = ""
         whereString (Just w) = " WHERE "++ (show w)
+        
+        showRemoteLimit Nothing      = ""
+        showRemoteLimit (Just (o,l)) = " ("++ show o ++","++ show l ++ ")"
+        
+        showLocalLimit Nothing       = ""
+        showLocalLimit (Just (o,l))  = " LIMIT "++ show l ++" OFFSET "++ show o
 
 readStmt :: String -> Either ParseError Expression
 readStmt = flip parseYql builder

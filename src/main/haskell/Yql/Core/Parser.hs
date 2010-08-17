@@ -31,6 +31,7 @@ module Yql.Core.Parser
        , AssertOperator(..)
        , SingleOperator(..)
        , ListOperator(..)
+       , Limit
        , ParseError
          -- * Parser
        , parseYql
@@ -41,6 +42,8 @@ import Text.ParserCombinators.Parsec
 import Yql.Core.Lexer
 
 type YqlParser a = GenParser Token () a
+
+type Limit = (Integer,Integer)
 
 -- | Tests if column satisfies a given property
 data AssertOperator i = IsNullOp i
@@ -67,7 +70,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onTxtValue   :: String -> v
                                            , onNumValue   :: String -> v
                                            , onMeValue    :: v
-                                           , onSelect     :: [i] -> i -> Maybe w -> [f] -> s
+                                           , onSelect     :: [i] -> i -> Maybe w -> Maybe Limit -> Maybe Limit -> [f] -> s
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
                                            , onInsert     :: [(i,v)] -> i -> [f] -> s
                                            , onDelete     :: i -> Maybe w -> [f] -> s
@@ -151,14 +154,34 @@ parseSelect e = do keyword (=="SELECT")
                          <|> parseIdentifier e `sepBy` keyword (==","))
                    keyword (=="FROM")
                    t <- parseIdentifier e
+                   rl <- remoteLimit
+                         <|> return Nothing
                    w <- whereClause
                         <|> return Nothing
+                   ll <- localLimit
+                         <|> return Nothing
                    f <- parseFunctions e
                    keyword (==";")
                    tkEof
-                   return (onSelect e c t w f)
+                   return (onSelect e c t w rl ll f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
+        
+        remoteLimit = do keyword (=="(")
+                         off <- fmap read numeric
+                         lim <- (do keyword (==",")
+                                    sz <- fmap read numeric
+                                    return (off,sz)
+                                ) <|> return (0,off)
+                         keyword (==")")
+                         return (Just lim)
+        
+        localLimit = do keyword (=="LIMIT")
+                        lim <- fmap read numeric
+                        off <- (do keyword (=="OFFSET")
+                                   fmap read numeric
+                               ) <|> return 0
+                        return (Just (off,lim))
 
 parseUpdate :: ParserEvents i v w f s -> YqlParser s
 parseUpdate e = do keyword (=="UPDATE")

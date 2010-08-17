@@ -74,41 +74,46 @@ suite = [ testGroup "Types.hs" [ test0
                                , test32
                                , test33
                                , test34
+                               , test35
+                               , test36
+                               , test37
+                               , test38
+                               , test39
                                ]
         ]
 
 test0 = testCase "show select * without where produces correct stmt" $
-        eq "SELECT * FROM iyql;" (show $ SELECT ["*"] "iyql" Nothing [])
+        eq "SELECT * FROM iyql;" (show $ SELECT ["*"] "iyql" Nothing Nothing Nothing [])
 
 test1 = testCase "show select foo,bar without where produces correct stmt" $
-        eq "SELECT foo,bar FROM iyql;" (show $ SELECT ["foo","bar"] "iyql" Nothing [])
+        eq "SELECT foo,bar FROM iyql;" (show $ SELECT ["foo","bar"] "iyql" Nothing Nothing Nothing [])
 
 test2 = testCase "show select foo with single where clause [txt]" $
-        eq "SELECT foo FROM iyql WHERE foo = \"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [])
+        eq "SELECT foo FROM iyql WHERE foo = \"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") Nothing Nothing[])
 
 test3 = testCase "show select pi with single where clause [num]" $
-        eq "SELECT pi FROM iyql WHERE pi = 3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") [])
+        eq "SELECT pi FROM iyql WHERE pi = 3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") Nothing Nothing [])
 
 test4 = testCase "show select foo with single IN clause" $
-        eq "SELECT foo FROM iyql WHERE foo IN (\"b\",\"a\",\"r\");" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]) [])
+        eq "SELECT foo FROM iyql WHERE foo IN (\"b\",\"a\",\"r\");" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]) Nothing Nothing [])
 
 test5 = testCase "show select with where expression with and/or" $
-        do eq "SELECT foo FROM iyql WHERE foo = \"bar\" OR bar = \"foo\" AND pi = 3.14;" (show $ SELECT ["foo"] "iyql" (Just $ ("foo" `OpEq` TxtValue "bar") `OpOr` ("bar" `OpEq` TxtValue "foo") `OpAnd` ("pi" `OpEq` NumValue "3.14")) [])
+        do eq "SELECT foo FROM iyql WHERE foo = \"bar\" OR bar = \"foo\" AND pi = 3.14;" (show $ SELECT ["foo"] "iyql" (Just $ ("foo" `OpEq` TxtValue "bar") `OpOr` ("bar" `OpEq` TxtValue "foo") `OpAnd` ("pi" `OpEq` NumValue "3.14")) Nothing Nothing [])
 
 test6 = testCase "read string creates correct type" $
-        do eq (SELECT ["foo","bar"] "iyql" (Just $ ("pi" `OpEq` NumValue "3.14") `OpOr` ("foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"])) []) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
+        do eq (SELECT ["foo","bar"] "iyql" (Just $ ("pi" `OpEq` NumValue "3.14") `OpOr` ("foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"])) Nothing Nothing []) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
 
 test7 = testCase "show select escapes strings" $
-        do eq "SELECT * FROM iyql WHERE foo = \"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") [])
-           eq "SELECT * FROM iyql WHERE foo = \"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") [])
+        do eq "SELECT * FROM iyql WHERE foo = \"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") Nothing Nothing [])
+           eq "SELECT * FROM iyql WHERE foo = \"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") Nothing Nothing [])
 
 test8 = testCase "show select with remote functions" $
-        do eq "SELECT * FROM iyql | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
-           eq "SELECT * FROM iyql WHERE foo = \"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+        do eq "SELECT * FROM iyql | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing Nothing Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo = \"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") Nothing Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test9 = testCase "show select with local functions" $
-        do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
-           eq "SELECT * FROM iyql WHERE foo = \"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+        do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing Nothing Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo = \"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") Nothing Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test10 = testCase "pipeline [execTransform] is in correct order" $
          do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (pipeline myLinker [Local "foo" [],Local "bar" []]))
@@ -129,14 +134,14 @@ test11 = testCase "pipeline generates error when function is not found" $
             ok (isJust $ pipeline () [])
 
 test12 = testCase "ld [transform] is in correct order" $
-         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld myLinker (SELECT ["*"] "foobar" Nothing [Local "foo" [],Local "bar" []])))
+         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
   where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
                    , ("bar", const (Just (Transform ("bar"++))))
                    ] :: [(String,[(String,Value)] -> Maybe Exec)]
 
 test13 = testCase "ld generates error when function is not found" $
-         do ok (isNothing $ ld () (SELECT ["*"] "foobar" Nothing [Local "foo" []]))
-            ok (isJust $ ld () (SELECT ["*"] "foobar" Nothing []))
+         do ok (isNothing $ ld () (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" []]))
+            ok (isJust $ ld () (SELECT ["*"] "foobar" Nothing Nothing Nothing []))
 
 test14 = testCase "show desc produces correct result" $
          do eq ("DESC foobar;") (show $ DESC "foobar" [])
@@ -215,35 +220,53 @@ test27 = testCase "show produces the correct stmt for show tables" $
             eq ("SHOW TABLES | .iyql();") (show $ SHOWTABLES [Local "iyql" []])
 
 test28 = testCase "show produces the correct stmt using local filter [like]" $
-         do eq "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") [])
-            eq "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") [])
+         do eq "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") Nothing Nothing [])
             
 test29 = testCase "show produces the correct stmt using local filter [matches]" $
-         do eq "SELECT * FROM iyql WHERE foo MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpMatches` TxtValue "iyql%") [])
-            eq "SELECT * FROM iyql WHERE foo NOT MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotMatches` TxtValue "iyql%") [])
+         do eq "SELECT * FROM iyql WHERE foo MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpMatches` TxtValue "iyql%") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo NOT MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotMatches` TxtValue "iyql%") Nothing Nothing [])
 
 test30 = testCase "show produces the correct stmt using local filters [is null]" $
-         do eq "SELECT * FROM iyql WHERE foo IS NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNull "foo") [])
-            eq "SELECT * FROM iyql WHERE foo IS NOT NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") [])
+         do eq "SELECT * FROM iyql WHERE foo IS NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNull "foo") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo IS NOT NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") Nothing Nothing [])
 
 test31 = testCase "show produces the correct stmt using local filters [!=,<,>,<=,>=]" $
-         do eq "SELECT * FROM iyql WHERE foo != 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") [])
-            eq "SELECT * FROM iyql WHERE foo > 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") [])
-            eq "SELECT * FROM iyql WHERE foo < 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") [])
-            eq "SELECT * FROM iyql WHERE foo >= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") [])
-            eq "SELECT * FROM iyql WHERE foo <= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") [])
+         do eq "SELECT * FROM iyql WHERE foo != 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo > 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo < 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo >= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") Nothing Nothing [])
+            eq "SELECT * FROM iyql WHERE foo <= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") Nothing Nothing [])
 
 test32 = testCase "read parses the correct statement using local filters [like]" $
-         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") []) (read "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";")
-            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") []) (read "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" )
+         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" )
             
 test33 = testCase "read parses the correct stmt using local filters [is null]" $
-         do eq (SELECT ["*"] "iyql" (Just $ OpIsNull "foo") []) (read "SELECT * FROM iyql WHERE foo IS NULL;")
-            eq (SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") []) (read "SELECT * FROM iyql WHERE foo IS NOT NULL;")
+         do eq (SELECT ["*"] "iyql" (Just $ OpIsNull "foo") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo IS NULL;")
+            eq (SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo IS NOT NULL;")
 
 test34 = testCase "read parses the correct stmt using local filters [!=,<,>,<=,>=]" $
-         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo != 7;")
-            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo > 7;")
-            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo < 7;")
-            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo >= 7;")
-            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo <= 7;")
+         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo != 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo > 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo < 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo >= 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") Nothing Nothing []) (read "SELECT * FROM iyql WHERE foo <= 7;")
+
+test35 = testCase "show functions with remote limits produces the proper stmt" $
+         do eq ("SELECT * FROM iyql (0,10);") (show $  SELECT ["*"] "iyql" Nothing (Just (0,10)) Nothing [])
+
+test36 = testCase "show functions with local limits produces the proper stmt" $
+         do eq ("SELECT * FROM iyql LIMIT 10 OFFSET 0;") (show $ SELECT ["*"] "iyql" Nothing Nothing (Just (0,10)) [])
+
+test37 = testCase "read parses the correct stmt using remote limits" $
+         do eq (SELECT ["*"] "iyql" Nothing (Just (0,10)) Nothing []) (read "SELECT * FROM iyql (0,10);")
+            eq (SELECT ["*"] "iyql" Nothing (Just (0,10)) Nothing []) (read "SELECT * FROM iyql (10);")
+
+test38 = testCase "read parses the correct stmt using local limits" $
+         do eq (SELECT ["*"] "iyql" Nothing Nothing (Just (13,7)) []) (read "SELECT * FROM iyql LIMIT 7 OFFSET 13;")
+            eq (SELECT ["*"] "iyql" Nothing Nothing (Just (0,17)) []) (read "SELECT * FROM iyql LIMIT 17;");
+
+test39 = testCase "read parses the correct stmt using remote limits" $
+         do eq (SELECT ["*"] "iyql" Nothing (Just (0,10)) Nothing []) (read "SELECT * FROM iyql(0,10);")
+            eq (SELECT ["*"] "iyql" Nothing (Just (0,17)) Nothing []) (read "SELECT * FROM iyql (17);")
