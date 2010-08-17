@@ -79,6 +79,11 @@ suite = [ testGroup "Types.hs" [ test0
                                , test37
                                , test38
                                , test39
+                               , test40
+                               , test41
+                               , test42
+                               , test43
+                               , test44
                                ]
         ]
 
@@ -134,14 +139,14 @@ test11 = testCase "pipeline generates error when function is not found" $
             ok (isJust $ pipeline () [])
 
 test12 = testCase "ld [transform] is in correct order" $
-         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
+         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld' myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
   where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
                    , ("bar", const (Just (Transform ("bar"++))))
                    ] :: [(String,[(String,Value)] -> Maybe Exec)]
 
 test13 = testCase "ld generates error when function is not found" $
-         do ok (isNothing $ ld () (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" []]))
-            ok (isJust $ ld () (SELECT ["*"] "foobar" Nothing Nothing Nothing []))
+         do ok (isNothing $ ld' () (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" []]))
+            ok (isJust $ ld' () (SELECT ["*"] "foobar" Nothing Nothing Nothing []))
 
 test14 = testCase "show desc produces correct result" $
          do eq ("DESC foobar;") (show $ DESC "foobar" [])
@@ -187,6 +192,7 @@ test19 = testCase "read update statements produces the correct type" $
 
 test20 = testCase "update returns true for update stmts" $
          do ok (update $ UPDATE [] "" Nothing [])
+            ok (update $ USE "" "" (UPDATE [] "" Nothing []))
 
 test21 = testCase "read insert statements produces the correct type" $ 
          do eq (INSERT [("foo",TxtValue "bar")] "foobar" []) (read "insert into foobar (foo) VALUES ('bar');")
@@ -209,6 +215,7 @@ test24 = testCase "read delete statements produces the correct type" $
 
 test25 = testCase "delete returns true for delete stmts" $
          do ok (delete $ DELETE "" Nothing [])
+            ok (delete $ USE "" "" (DELETE "" Nothing []))
 
 test26 = testCase "read show tables statements produces the correct type" $
          do eq (SHOWTABLES []) (read "show tables;")
@@ -270,3 +277,26 @@ test38 = testCase "read parses the correct stmt using local limits" $
 test39 = testCase "read parses the correct stmt using remote limits" $
          do eq (SELECT ["*"] "iyql" Nothing (Just (0,10)) Nothing []) (read "SELECT * FROM iyql(0,10);")
             eq (SELECT ["*"] "iyql" Nothing (Just (0,17)) Nothing []) (read "SELECT * FROM iyql (17);")
+
+test40 = testCase "read parses the correct stmt for use statements" $
+         do eq (USE "foobar" "fb" (SELECT ["*"] "iyql" Nothing Nothing Nothing [])) (read "USE \"foobar\" as fb; SELECT * FROM iyql;")
+            eq (USE "foobar" "fb" (UPDATE [("foo",TxtValue "bar")] "iyql" Nothing [])) (read "USE \"foobar\" as fb; UPDATE iyql set foo='bar';")
+            eq (USE "foobar" "fb" (INSERT [("foo",TxtValue "bar")] "foobar" [])) (read "USE \"foobar\" as fb; INSERT INTO foobar (foo) VALUES ('bar');")
+            eq (USE "foobar" "fb" (DELETE "foobar" Nothing [])) (read "USE \"foobar\" as fb; DELETE FROM foobar;")
+            eq (USE "foo" "f" (USE "bar" "b" (SELECT ["*"] "iyql" Nothing Nothing Nothing []))) (read "USE \"foo\" as f; USE \"bar\" as b; SELECT * FROM iyql;")
+
+test41 = testCase "select returns true for select statements" $
+         do ok (select $ SELECT [] "foobar" Nothing Nothing Nothing [])
+            ok (select $ USE "" "" (SELECT [] "foobar" Nothing Nothing Nothing []))
+
+test42 = testCase "insert returns true for insert statements" $
+         do ok (insert $ INSERT [] "" [])
+            ok (insert $ USE "" "" (INSERT [] "" []))
+
+test43 = testCase "showTables returns true for show tables statements" $
+         do ok (showTables $ SHOWTABLES [])
+            ok (showTables $ USE "" "" (SHOWTABLES []))
+
+test44 = testCase "desc returns true for desc statements" $
+         do ok (desc $ DESC "" [])
+            ok (desc $ USE "" "" (DESC "" []))

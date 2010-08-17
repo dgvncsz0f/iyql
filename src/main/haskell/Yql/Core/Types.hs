@@ -40,6 +40,7 @@ module Yql.Core.Types
        , update
        , insert
        , delete
+       , use
        , desc
        , local
        , remote
@@ -57,7 +58,7 @@ module Yql.Core.Types
        , showValue
        , showWhere
          -- * Misc
-       , ld
+       , ld'
        , pipeline
        , execBefore
        , execAfter
@@ -112,6 +113,7 @@ data Expression = SELECT [String] String (Maybe Where) (Maybe Limit) (Maybe Limi
                 | INSERT [(String,Value)] String [Function]
                 | DELETE String (Maybe Where) [Function]
                 | SHOWTABLES [Function]
+                | USE String String Expression
                 deriving (Eq)
 
 -- | Local functions that may change a given yql query
@@ -137,8 +139,9 @@ data Description = Table { table    :: String
 
 -- | Database of exec types.
 class Linker r where
-  link :: r -> String -> [(String,Value)] -> Maybe Exec
-
+  -- | Given a function and its arguments returns the executable.
+  ld :: r -> String -> [(String,Value)] -> Maybe Exec
+  
 execTransform :: Exec -> String -> String
 execTransform (Transform f) s = f s
 execTransform (Seq fa fb) s   = execTransform fb (execTransform fa s)
@@ -157,14 +160,14 @@ execAfter _ r           = r
 -- | Transforms a list of functions into a pipeline using a given linker.
 pipeline :: Monad m => Linker l => l -> [Function] -> m Exec
 pipeline _ []     = return NOp
-pipeline l (f:fs) = case (link l (name f) (args f))
+pipeline l (f:fs) = case (ld l (name f) (args f))
                     of Nothing -> fail $ "unknown function: " ++ name f
                        Just ex -> liftM (ex `Seq`) (pipeline l fs)
 
 -- | Extracts the local functions from the statement and creates a pipeline.
-ld :: (Monad m, Linker l) => l -> Expression -> m Exec
-ld l stmt = let fs = filter local (functions stmt)
-            in pipeline l fs
+ld' :: (Monad m, Linker l) => l -> Expression -> m Exec
+ld' l stmt = let fs = filter local (functions stmt)
+             in pipeline l fs
 
 -- | Listen to parser events to build Expression type.
 builder :: ParserEvents String Value Where Function Expression
@@ -172,6 +175,7 @@ builder = ParserEvents { onIdentifier = id
                        , onTxtValue   = TxtValue
                        , onNumValue   = NumValue
                        , onMeValue    = MeValue
+                       , onUse        = USE
                        , onSelect     = SELECT
                        , onUpdate     = UPDATE
                        , onDelete     = DELETE
@@ -205,30 +209,41 @@ builder = ParserEvents { onIdentifier = id
 -- | Test if the statement is a select statement
 select :: Expression -> Bool
 select (SELECT _ _ _ _ _ _) = True
+select (USE _ _ e)          = select e
 select _                    = False
 
 -- | Test if the statment is a desc statament
 desc :: Expression -> Bool
-desc (DESC _ _) = True
-desc _          = False
+desc (DESC _ _)  = True
+desc (USE _ _ e) = desc e
+desc _           = False
 
 -- | Test if the statement is a show tables statement
 showTables :: Expression -> Bool
 showTables (SHOWTABLES _) = True
+showTables (USE _ _ e)    = showTables e
 showTables _              = False
 
 update :: Expression -> Bool
 update (UPDATE _ _ _ _) = True
+update (USE _ _ e)      = update e
 update _                = False
 
 -- | Test if the statement is a insert statement
 insert :: Expression -> Bool
 insert (INSERT _ _ _) = True
+insert (USE _ _ e)    = insert e
 insert _              = False
+
+-- | Test if this is a use statement
+use :: Expression -> Bool
+use (USE _ _ _) = True
+use _           = False
 
 -- | Test if the statement is a delete statement
 delete :: Expression -> Bool
 delete (DELETE _ _ _) = True
+delete (USE _ _ e)    = delete e
 delete _              = False
 
 -- | Test if the function is a local function
@@ -249,6 +264,7 @@ tables (UPDATE _ t _ _)     = [t]
 tables (INSERT _ t _)       = [t]
 tables (DELETE t _ _)       = [t]
 tables (SHOWTABLES _)       = []
+tables (USE _ _ stmt)       = tables stmt
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
@@ -261,6 +277,7 @@ usingMe stmt = case stmt
                   (INSERT c _ _)       -> any (MeValue==) (map snd c)
                   (DELETE _ w _)       -> Just True == fmap findMe w
                   (SHOWTABLES _)       -> False
+                  (USE _ _ stmt')      -> usingMe stmt'
   where findMe (_ `OpEq` v)         = v == MeValue
         findMe (_ `OpNe` v)         = v == MeValue
         findMe (_ `OpGe` v)         = v == MeValue
@@ -284,6 +301,7 @@ functions (UPDATE _ _ _ f)     = f
 functions (INSERT _ _ f)       = f
 functions (DELETE _ _ f)       = f
 functions (SHOWTABLES f)       = f
+functions (USE _ _ stmt)       = functions stmt
 
 showStmt :: Expression -> String
 showStmt stmt = case stmt
@@ -324,7 +342,7 @@ showStmt stmt = case stmt
                    SHOWTABLES func           -> "SHOW TABLES"
                                                 ++ funcString func
                                                 ++ ";"
-
+                   USE url as stmt'          -> "USE "++ (showValue (TxtValue url)) ++" AS "++ as ++";"++ showStmt stmt'
   where funcString func | null func = ""
                         | otherwise = " | " ++ intercalate " | " (map show func)
         
@@ -408,11 +426,11 @@ instance Ord Security where
   compare App User  = LT
 
 instance Linker () where
-  link _ _ _ = Nothing
+  ld _ _ _ = Nothing
 
 instance Linker (String,[(String,Value)] -> Maybe Exec) where
-  link (k0,f) k1 argv | k1==k0    = (f argv)
-                      | otherwise = Nothing
+  ld (k0,f) k1 argv | k1==k0    = (f argv)
+                    | otherwise = Nothing
 
 instance Linker l => Linker [l] where
-  link r k argv = foldr mplus Nothing (zipWith ($) (map (uncurry . link) r) (repeat (k,argv)))
+  ld r k argv = foldr mplus Nothing (zipWith ($) (map (uncurry . ld) r) (repeat (k,argv)))

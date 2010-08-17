@@ -100,6 +100,8 @@ mksym sym | uSym `elem` keyword = TkKey uSym
                             , "INSERT"
                             , "DELETE"
                             , "DESC"
+                            , "USE"
+                            , "AS"
                             , "SHOW"
                             , "TABLES"
                             , "OR"

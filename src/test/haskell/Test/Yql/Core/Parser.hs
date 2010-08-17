@@ -73,6 +73,8 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test32
                                 , test33
                                 , test34
+                                , test35
+                                , test36
                                 ]
         ]
 
@@ -193,6 +195,15 @@ test34 = testCase "select * using local filters [is null]" $
          do eq "SELECT * FROM iyql WHERE foo IS NULL;" (runYqlParser_ "select * from iyql where foo is null;")
             eq "SELECT * FROM iyql WHERE foo IS NOT NULL;" (runYqlParser_ "select * from iyql where foo is not null;")
 
+test35 = testCase "single use statements" $
+         do eq "USE \"foobar\" AS fb; SELECT * FROM foobar;" (runYqlParser_ "use 'foobar' as fb; select * from foobar;")
+            eq "USE \"foobar\" AS fb; UPDATE foobar SET foo=10;" (runYqlParser_ "use 'foobar' as fb; update foobar set foo=10;")
+            eq "USE \"foobar\" AS fb; INSERT INTO foobar (foo) VALUES (10);" (runYqlParser_ "use 'foobar' as fb; insert into foobar (foo) values (10);")
+            eq "USE \"foobar\" AS fb; DELETE FROM foobar;" (runYqlParser_ "use 'foobar' as fb; delete from foobar;")
+
+test36 = testCase "multiple use statements" $
+         do eq "USE \"foo\" AS f; USE \"bar\" AS b; USE \"foobar\" AS fb; SELECT * FROM foobar;" (runYqlParser_ "use 'foo' as f; use 'bar' as b; use 'foobar' as fb; select * from foobar;")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -210,6 +221,7 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onNumValue   = id
                              , onMeValue    = "me"
                              , onSelect     = mkSelect
+                             , onUse        = mkUse
                              , onUpdate     = mkUpdate
                              , onInsert     = mkInsert
                              , onDelete     = mkDelete
@@ -227,7 +239,9 @@ stringBuilder = ParserEvents { onIdentifier = id
 
         mkSelect c t Nothing  rl ll f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showRemoteLimit rl ++ showLocalLimit ll ++ showFunction f ++ ";"
         mkSelect c t (Just w) rl ll f = "SELECT " ++ (intercalate "," c) ++ " FROM " ++ t ++ showRemoteLimit rl ++ " WHERE " ++ w ++ showLocalLimit ll ++ showFunction f ++ ";"
-
+        
+        mkUse u a stmt = "USE \""++ u ++"\""++ " AS "++ a ++"; "++ stmt
+        
         mkUpdate c t Nothing f  = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ showFunction f ++ ";"
         mkUpdate c t (Just w) f = "UPDATE " ++ t ++ " SET " ++ (intercalate "," (map (\(k,v) -> k++"="++v) c)) ++ " WHERE " ++ w ++ showFunction f ++ ";"
         

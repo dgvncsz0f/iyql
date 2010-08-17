@@ -89,6 +89,8 @@ test0 = testCase "keyword tokens" $
            eq (TkKey "MATCHES") (scanToken1 "matches")
            eq (TkKey "LIMIT")   (scanToken1 "limit")
            eq (TkKey "OFFSET")  (scanToken1 "offset")
+           eq (TkKey "USE")     (scanToken1 "use")
+           eq (TkKey "AS")      (scanToken1 "as")
 
 test1 = testCase "quoted string tokens" $
         do eq (TkStr "foobar")                (scanToken1 "'foobar'")

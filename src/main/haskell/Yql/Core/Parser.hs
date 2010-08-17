@@ -31,7 +31,7 @@ module Yql.Core.Parser
        , AssertOperator(..)
        , SingleOperator(..)
        , ListOperator(..)
-       , Limit(..)
+       , Limit
        , ParseError
          -- * Parser
        , parseYql
@@ -75,6 +75,7 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
                                            , onInsert     :: [(i,v)] -> i -> [f] -> s
                                            , onDelete     :: i -> Maybe w -> [f] -> s
+                                           , onUse        :: String -> i -> s -> s
                                            , onShowTables :: [f] -> s
                                            , onDesc       :: i -> [f] -> s
                                            , onAssertOp   :: AssertOperator i -> w
@@ -91,14 +92,17 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
 parseYql :: String -> ParserEvents i v w f s -> Either ParseError s
 parseYql input e = case tokStream
                    of Left err     -> Left err
-                      Right input_ -> runParser parseYql_ () "stdin" input_
-  where parseYql_ = parseDesc e 
-                    <|> parseSelect e
-                    <|> parseUpdate e
-                    <|> parseInsert e
-                    <|> parseDelete e
-                    <|> parseShowTables e
-        tokStream = runParser scan "" "stdin" input
+                      Right input_ -> runParser (parseYql_ e) () "stdin" input_
+  where tokStream = runParser scan "" "stdin" input
+
+parseYql_ :: ParserEvents i v w f s -> YqlParser s
+parseYql_ e = parseDesc e
+              <|> parseSelect e
+              <|> parseUpdate e
+              <|> parseInsert e
+              <|> parseDelete e
+              <|> parseShowTables e
+              <|> parseUse e
 
 quoted :: YqlParser String
 quoted = accept test
@@ -148,6 +152,15 @@ parseShowTables e = do keyword (=="SHOW")
                        keyword (==";")
                        tkEof
                        return (onShowTables e f)
+
+parseUse :: ParserEvents i v w f s -> YqlParser s
+parseUse e = do keyword (=="USE")
+                url  <- quoted
+                keyword (=="AS")
+                as   <- parseIdentifier e
+                keyword (==";")
+                stmt <- parseYql_ e
+                return (onUse e url as stmt)
 
 parseSelect :: ParserEvents i v w f s -> YqlParser s
 parseSelect e = do keyword (=="SELECT")

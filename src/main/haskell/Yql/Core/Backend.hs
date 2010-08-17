@@ -43,7 +43,7 @@ import Yql.Core.Session
 import Yql.Xml
 import Data.Char
 import Data.Maybe
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf,intercalate)
 import Data.Time
 import Data.Binary
 import System.Directory
@@ -73,14 +73,25 @@ fileLoad file = do valid <- doesFileExist file
 
 -- | Tells the minimum security level required to perform this
 -- statament.
-executeDesc :: (MonadIO m,HttpClient m,Yql y) => y -> String -> [String] -> OutputT m Description
-executeDesc y t envs = execute y ldd (DESC t funcs) >>= parseXml
+descTablesIn :: (MonadIO m,HttpClient m,Yql y) => y -> [String] -> Expression -> OutputT m Description
+descTablesIn y envs stmt = case stmt
+                           of _ | desc stmt       -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
+                                | usingMe stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
+                                | showTables stmt -> return (Table "<<dummy>>" Any False)
+                                | otherwise       -> fmap (foldr1 joinDesc) (mapM execDesc (tables stmt))
     where parseXml xml = case (xmlParse xml)
                          of Just doc -> case (readDescXml doc)
                                         of Just rst -> return rst
-                                           Nothing  -> fail $ "couldn't desc table " ++ t
+                                           Nothing  -> fail $ "couldn't desc tables " ++ intercalate "," (tables stmt)
                             Nothing  -> fail "error parsing xml"
-
+          
+          execDesc t = execute y ldd (mkDesc stmt t) >>= parseXml
+          
+          mkDesc (USE u a stmt') t = USE u a (mkDesc stmt' t)
+          mkDesc _ t               = DESC t funcs
+          
+          joinDesc (Table _ sec0 ssl0) (Table _ sec1 ssl1) = Table "<<many>>" (max sec0 sec1) (ssl0 || ssl1)
+          
           funcs | null envs = [] 
                 | otherwise = [Local "request" [("env",TxtValue env) | env <- envs]]
 
@@ -101,7 +112,7 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
                                  , R.port       = portNumber
                                  , R.pathComps  = yqlPath
                                  , R.method     = httpMethod
-                                 , R.qString    = R.fromList [("q",show preparedStmt)]
+                                 , R.qString    = R.fromList [("q",show $ preparedStmt stmt)]
                                  }
   where yqlPath
           | security d `elem` [User,App] = ["","v1","yql"]
@@ -116,13 +127,14 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
                    | delete stmt = R.DELETE
                    | otherwise   = R.GET
 
-        preparedStmt = case stmt
-                       of (SELECT c t w rl ll f) -> SELECT c t w rl ll (filter remote f)
-                          (DESC t _)             -> DESC t []
-                          (UPDATE c t w f)       -> UPDATE c t w (filter remote f)
-                          (INSERT c t f)         -> INSERT c t (filter remote f)
-                          (DELETE t w f)         -> DELETE t w (filter remote f)
-                          (SHOWTABLES f)         -> SHOWTABLES (filter remote f)
+        preparedStmt stmt_ = case stmt_
+                             of (SELECT c t w rl ll f) -> SELECT c t w rl ll (filter remote f)
+                                (DESC t _)             -> DESC t []
+                                (UPDATE c t w f)       -> UPDATE c t w (filter remote f)
+                                (INSERT c t f)         -> INSERT c t (filter remote f)
+                                (DELETE t w f)         -> DELETE t w (filter remote f)
+                                (SHOWTABLES f)         -> SHOWTABLES (filter remote f)
+                                (USE url as stmt')     -> USE url as (preparedStmt stmt')
 
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
@@ -137,23 +149,15 @@ class Yql y where
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
   execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Expression -> OutputT m String
-  execute y l stmt = do mkRequest   <- fmap execBefore (ld l stmt)
-                        mkResponse  <- fmap execAfter (ld l stmt)
-                        mkOutput    <- fmap execTransform (ld l stmt)
-                        tableDesc   <- descTable (R.find (=="env") . R.qString . mkRequest $ emptyRequest)
+  execute y l stmt = do mkRequest   <- fmap execBefore (ld' l stmt)
+                        mkResponse  <- fmap execAfter (ld' l stmt)
+                        mkOutput    <- fmap execTransform (ld' l stmt)
+                        tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest $ emptyRequest) stmt
                         response    <- lift (runOAuth $ do credentials y (security tableDesc)
                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ (myRequest tableDesc) { R.host = endpoint y } ))
                         return $ mkOutput (toString (mkResponse response))
 
-    where descTable env = case stmt
-                          of _ | desc stmt       -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
-                               | usingMe stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
-                               | showTables stmt -> return (Table "<<dummy>>" Any False)
-                               | otherwise       -> fmap (foldr1 joinDesc) (mapM (flip (executeDesc y) env) (tables stmt))
-            where joinDesc (Table _ sec0 ssl0) (Table _ sec1 ssl1) = Table "<<many>>" (max sec0 sec1) (ssl0 || ssl1)
-
-          myRequest = yqlRequest stmt
-
+    where myRequest = yqlRequest stmt
 
 toString :: Response -> String
 toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload

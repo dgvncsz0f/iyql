@@ -66,9 +66,7 @@ next = next_ defPrompt
                             | otherwise      -> do Just suffix <- fmap (`mplus` Just "") (next_ parPrompt)
                                                    return (Just $ input ++" "++ suffix)
         
-        scEnding (';':xs) = empty xs
-        scEnding (_:xs)   = scEnding xs
-        scEnding []       = False
+        scEnding xs = ";" `isPrefixOf` (dropWhile (isSpace) (reverse xs))
 
 loop :: EventHandler -> InputT IO ()
 loop ex = do minput <- next
