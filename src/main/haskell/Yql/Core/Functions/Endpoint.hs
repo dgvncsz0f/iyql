@@ -24,20 +24,16 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Ldd
-       ( ldd
+module Yql.Core.Functions.Endpoint
+       ( yqlEndpoint
        ) where
 
 import Yql.Core.Types
-import Yql.Core.Functions.Request
-import Yql.Core.Functions.Tables
-import Yql.Core.Functions.Endpoint
+import Network.OAuth.Http.Request
 
--- | Default linker
-ldd :: [(String,[(String,Value)] -> Maybe Exec)]
-ldd = [ ("request",yqlRequest)
-      , ("json",const (yqlRequest [("format",TxtValue "json")]))
-      , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
-      , ("tables",tablesTransform)
-      , ("endpoint",yqlEndpoint)
-      ]
+-- | Change the format parameter
+yqlEndpoint :: [(String,Value)] -> Maybe Exec
+yqlEndpoint vs = case vs 
+                 of [("host",TxtValue h)] -> Just (Before (func h))
+                    _                     -> Nothing
+  where func h r = r { host = h }
