@@ -69,6 +69,10 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test28
                                 , test29
                                 , test30
+                                , test31
+                                , test32
+                                , test33
+                                , test34
                                 ]
         ]
 
@@ -99,16 +103,16 @@ test7 = testCase "select * using local filters [like]" $
            eq "SELECT * FROM iyql WHERE foo NOT LIKE \"baz\";" (runYqlParser_ "select * from iyql where foo not like \"baz\";")
 
 test8 = testCase "select * using local filters [matches]" $
-        do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo matches \".*.bar*\";")
-           eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo not matches \"bar\";")
+        do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo matches \".*bar.*\";")
+           eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo not matches \".*bar.*\";")
 
 test9 = testCase "select * using local filters [>,>=,=,!=,<,<=]" $
-        do eq "SELECT * FROM iyql WHERE foo > 7;" (runYqlParser_ "select * from iyql where foo > 7;")
-           eq "SELECT * FROM iyql WHERE foo >= 7;" (runYqlParser_ "select * from iyql where foo >= 7;")
-           eq "SELECT * FROM iyql WHERE foo <= 7;" (runYqlParser_ "select * from iyql where foo <= 7;")
-           eq "SELECT * FROM iyql WHERE foo < 7;" (runYqlParser_ "select * from iyql where foo < 7;")
-           eq "SELECT * FROM iyql WHERE foo = 7;" (runYqlParser_ "select * from iyql where foo = 7;")
-           eq "SELECT * FROM iyql WHERE foo != 7;" (runYqlParser_ "select * from iyql where foo != 7;")
+        do eq "SELECT * FROM iyql WHERE foo>7;" (runYqlParser_ "select * from iyql where foo > 7;")
+           eq "SELECT * FROM iyql WHERE foo>=7;" (runYqlParser_ "select * from iyql where foo >= 7;")
+           eq "SELECT * FROM iyql WHERE foo<=7;" (runYqlParser_ "select * from iyql where foo <= 7;")
+           eq "SELECT * FROM iyql WHERE foo<7;" (runYqlParser_ "select * from iyql where foo < 7;")
+           eq "SELECT * FROM iyql WHERE foo=7;" (runYqlParser_ "select * from iyql where foo = 7;")
+           eq "SELECT * FROM iyql WHERE foo!=7;" (runYqlParser_ "select * from iyql where foo != 7;")
 
 test10 = testCase "select with where clause with different precedence" $
          do eq "SELECT * FROM iyql WHERE (foo=2 and bar=3) or (foo=5 and bar=7);" (runYqlParser_ "select * from iyql where (foo=2 and bar=3) or (foo=5 and bar=7);")
@@ -120,7 +124,7 @@ test11 = testCase "local functions should not precede any remote functions" $
 test12 = testCase "local and remote functions in the same query" $
          do eq "SELECT * FROM iyql | foo() | .bar();" (runYqlParser_ "select * from iyql | foo() | .bar();")
 
-test13 = testCase "select using custom offset/limit" $
+test13 = testCase "select using remote limit/offset" $
          do eq "SELECT * FROM iyql (0,10);" (runYqlParser_ "select * from iyql(0,10);")
 
 test14 = testCase "desc statements" $
@@ -174,6 +178,20 @@ test29 = testCase "show tables statements without functions" $
 test30 = testCase "show tables statements with functions" $
          do eq "SHOW TABLES | .iyql();" (runYqlParser_ "show tables | .iyql();")
 
+test31 = testCase "select statements with local limit" $
+         do eq "SELECT * FROM iyql LIMIT 10;" (runYqlParser_ "select * from iyql limit 10;")
+
+test32 = testCase "select statements with local limit/offset" $
+         do eq "SELECT * FROM iyql LIMIT 10 OFFSET 0;" (runYqlParser_ "select * from iyql limit 10 offset 0;")
+
+test33 = testCase "select * using local filters [matches]" $
+         do eq "SELECT * FROM iyql WHERE foo MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo matches \".*bar.*\";")
+            eq "SELECT * FROM iyql WHERE foo NOT MATCHES \".*bar.*\";" (runYqlParser_ "select * from iyql where foo not matches \".*bar.*\";")
+
+test34 = testCase "select * using local filters [is null]" $
+         do eq "SELECT * FROM iyql WHERE foo IS NULL;" (runYqlParser_ "select * from iyql where foo is null;")
+            eq "SELECT * FROM iyql WHERE foo IS NOT NULL;" (runYqlParser_ "select * from iyql where foo is not null;")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -190,8 +208,9 @@ stringBuilder = ParserEvents { onIdentifier = id
                              , onDelete     = mkDelete
                              , onDesc       = mkDesc
                              , onShowTables = mkShowTables
-                             , onEqExpr     = mkEqExpr
-                             , onInExpr     = mkInExpr
+                             , onAssertOp   = mkAssertOp
+                             , onSingleOp   = mkSingleOp
+                             , onListOp     = mkListOp
                              , onAndExpr    = mkAndExpr
                              , onOrExpr     = mkOrExpr
                              , onLocalFunc  = mkFunc "."
@@ -217,9 +236,21 @@ stringBuilder = ParserEvents { onIdentifier = id
         mkFunc p n as = p ++ n ++ "("++ intercalate "," (map showArg as) ++")"
           where showArg (k,v) = k ++"="++ v
 
-        mkEqExpr c v = c ++"="++ v
+        mkSingleOp (c `EqOp` v) = c ++"="++ v
+        mkSingleOp (c `GtOp` v) = c ++">"++ v
+        mkSingleOp (c `LtOp` v) = c ++"<"++ v
+        mkSingleOp (c `NeOp` v) = c ++"!=" ++ v
+        mkSingleOp (c `GeOp` v) = c ++">="++ v
+        mkSingleOp (c `LeOp` v) = c ++"<="++ v
+        mkSingleOp (c `LikeOp` v) = c ++" LIKE "++ v
+        mkSingleOp (c `MatchesOp` v) = c ++" MATCHES "++ v
+        mkSingleOp (c `NotLikeOp` v) = c ++" NOT LIKE "++ v
+        mkSingleOp (c `NotMatchesOp` v) = c ++" NOT MATCHES "++ v
+        
+        mkAssertOp (IsNullOp c)    = c ++ " IS NULL"
+        mkAssertOp (IsNotNullOp c) = c ++ " IS NOT NULL"
 
-        mkInExpr c vs = c ++ " IN ("++ intercalate "," vs ++")"
+        mkListOp (c `InOp` vs) = c ++ " IN ("++ intercalate "," vs ++")"
 
         mkAndExpr l r = l ++" AND "++ r
 

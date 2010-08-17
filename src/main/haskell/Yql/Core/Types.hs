@@ -80,7 +80,18 @@ data Value = TxtValue String
 
 -- | Where clause to filter/limit data in yql statements.
 data Where = String `OpEq` Value
+           | String `OpNe` Value
+           | String `OpGt` Value
+           | String `OpGe` Value
+           | String `OpLike` Value
+           | String `OpNotLike` Value
+           | String `OpMatches` Value
+           | String `OpNotMatches` Value
+           | String `OpLt` Value
+           | String `OpLe` Value
            | String `OpIn` [Value]
+           | OpIsNull String
+           | OpIsNotNull String
            | Where `OpAnd` Where
            | Where `OpOr` Where
            deriving (Eq)
@@ -167,13 +178,29 @@ builder = ParserEvents { onIdentifier = id
                        , onInsert     = INSERT
                        , onDesc       = DESC
                        , onShowTables = SHOWTABLES
-                       , onEqExpr     = OpEq
-                       , onInExpr     = OpIn
+                       , onAssertOp   = mkAssertOp
+                       , onSingleOp   = mkSingleOp
+                       , onListOp     = mkListOp
                        , onAndExpr    = OpAnd
                        , onOrExpr     = OpOr
                        , onRemoteFunc = Remote
                        , onLocalFunc  = Local
                        }
+  where mkSingleOp (EqOp c v)         = OpEq c v
+        mkSingleOp (NeOp c v)         = OpNe c v
+        mkSingleOp (GeOp c v)         = OpGe c v
+        mkSingleOp (GtOp c v)         = OpGt c v
+        mkSingleOp (LeOp c v)         = OpLe c v
+        mkSingleOp (LtOp c v)         = OpLt c v
+        mkSingleOp (LikeOp c v)       = OpLike c v
+        mkSingleOp (NotLikeOp c v)    = OpNotLike c v
+        mkSingleOp (MatchesOp c v)    = OpMatches c v
+        mkSingleOp (NotMatchesOp c v) = OpNotMatches c v
+        
+        mkListOp (InOp c vs)  = OpIn c vs
+        
+        mkAssertOp (IsNullOp c)    = OpIsNull c
+        mkAssertOp (IsNotNullOp c) = OpIsNotNull c
 
 -- | Test if the statement is a select statement
 select :: Expression -> Bool
@@ -234,10 +261,21 @@ usingMe stmt = case stmt
                   (INSERT c _ _)   -> any (MeValue==) (map snd c)
                   (DELETE _ w _)   -> Just True == fmap findMe w
                   (SHOWTABLES _)   -> False
-  where findMe (_ `OpEq` v)    = v == MeValue
-        findMe (_ `OpIn` vs)   = any (==MeValue) vs
-        findMe (w0 `OpAnd` w1) = findMe w0 || findMe w1
-        findMe (w0 `OpOr` w1)  = findMe w0 || findMe w1
+  where findMe (_ `OpEq` v)         = v == MeValue
+        findMe (_ `OpNe` v)         = v == MeValue
+        findMe (_ `OpGe` v)         = v == MeValue
+        findMe (_ `OpGt` v)         = v == MeValue
+        findMe (_ `OpLe` v)         = v == MeValue
+        findMe (_ `OpLt` v)         = v == MeValue
+        findMe (_ `OpLike` v)       = v == MeValue
+        findMe (_ `OpNotLike` v)    = v == MeValue
+        findMe (_ `OpMatches` v)    = v == MeValue
+        findMe (_ `OpNotMatches` v) = v == MeValue
+        findMe (_ `OpIn` vs)        = any (==MeValue) vs
+        findMe (OpIsNull _)         = False
+        findMe (OpIsNotNull _)      = False
+        findMe (w0 `OpAnd` w1)      = findMe w0 || findMe w1
+        findMe (w0 `OpOr` w1)       = findMe w0 || findMe w1
 
 functions :: Expression -> [Function]
 functions (SELECT _ _ _ f) = f
@@ -311,10 +349,21 @@ showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) +
                  | otherwise = ""
 
 showWhere :: Where -> String
-showWhere (c `OpEq` v)  = c ++"="++ show v
-showWhere (c `OpIn` vs) = c ++" IN ("++ intercalate "," (map show vs) ++")"
-showWhere (l `OpAnd` r) = show l ++" AND "++ show r
-showWhere (l `OpOr` r)  = show l ++" OR "++ show r
+showWhere (c `OpEq` v)         = c ++" = "++ show v
+showWhere (c `OpGt` v)         = c ++" > "++ show v
+showWhere (c `OpLt` v)         = c ++" < "++ show v
+showWhere (c `OpNe` v)         = c ++" != "++ show v
+showWhere (c `OpGe` v)         = c ++" >= "++ show v
+showWhere (c `OpLe` v)         = c ++" <= "++ show v
+showWhere (c `OpLike` v)       = c ++" LIKE "++ show v
+showWhere (c `OpNotLike` v)    = c ++" NOT LIKE "++ show v
+showWhere (c `OpMatches` v)    = c ++" MATCHES "++ show v
+showWhere (c `OpNotMatches` v) = c ++" NOT MATCHES "++ show v
+showWhere (c `OpIn` vs)        = c ++" IN ("++ intercalate "," (map show vs) ++")"
+showWhere (l `OpAnd` r)        = show l ++" AND "++ show r
+showWhere (l `OpOr` r)         = show l ++" OR "++ show r
+showWhere (OpIsNull c)         = c ++ " IS NULL"
+showWhere (OpIsNotNull c)      = c ++ " IS NOT NULL"
 
 showValue :: Value -> String
 showValue (MeValue)    = "me"

@@ -28,6 +28,9 @@
 module Yql.Core.Parser
        ( -- * Types
          ParserEvents(..)
+       , AssertOperator(..)
+       , SingleOperator(..)
+       , ListOperator(..)
        , ParseError
          -- * Parser
        , parseYql
@@ -38,6 +41,25 @@ import Text.ParserCombinators.Parsec
 import Yql.Core.Lexer
 
 type YqlParser a = GenParser Token () a
+
+-- | Tests if column satisfies a given property
+data AssertOperator i = IsNullOp i
+                      | IsNotNullOp i
+
+-- | Operators in where clause that takes a single value
+data SingleOperator i v = EqOp i v
+                        | NeOp i v
+                        | GtOp i v
+                        | GeOp i v
+                        | LtOp i v
+                        | LeOp i v
+                        | LikeOp i v
+                        | NotLikeOp i v
+                        | MatchesOp i v
+                        | NotMatchesOp i v
+
+-- | Operator in where clause that takes a list of values
+data ListOperator i v = InOp i [v]
 
 -- | Events the parser generates. The main purpose of this is to allow
 -- you constructing types that represents yql statements.
@@ -51,8 +73,9 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onDelete     :: i -> Maybe w -> [f] -> s
                                            , onShowTables :: [f] -> s
                                            , onDesc       :: i -> [f] -> s
-                                           , onEqExpr     :: i -> v -> w
-                                           , onInExpr     :: i -> [v] -> w
+                                           , onAssertOp   :: AssertOperator i -> w
+                                           , onSingleOp   :: SingleOperator i v -> w
+                                           , onListOp     :: ListOperator i v -> w
                                            , onAndExpr    :: w -> w -> w
                                            , onOrExpr     :: w -> w -> w
                                            , onLocalFunc  :: i -> [(i,v)] -> f
@@ -194,18 +217,32 @@ parseValue e = fmap (onTxtValue e) quoted
                <|> fmap (const $ onMeValue e) (keyword (=="ME"))
 
 parseWhere :: ParserEvents i v w f s -> YqlParser w
-parseWhere e = do column <- parseIdentifier e
-                  op     <- keyword (`elem` ["=","IN"])
-                  w      <- parseValueBy column op
-                  (keyword (=="AND") >> fmap (onAndExpr e w) (parseWhere e))
-                   <|> (keyword (=="OR") >> fmap (onOrExpr e w) (parseWhere e))
-                   <|> return w
-  where parseValueBy column "="  = fmap (onEqExpr e column) (parseValue e)
-        parseValueBy column "IN" = do keyword (=="(")
-                                      ret <- fmap (onInExpr e column) (parseValue e `sepBy` keyword (==","))
-                                      keyword (==")")
-                                      return ret
-        parseValueBy _ _         = fail "expecting one of [=,IN]"
+parseWhere e = do c       <- parseIdentifier e
+                  wclause <- parseScalar c
+                             <|> parseList c
+                             <|> parseAssert c
+                  (keyword (=="AND") >> fmap (onAndExpr e wclause) (parseWhere e))
+                   <|> (keyword (=="OR") >> fmap (onOrExpr e wclause) (parseWhere e))
+                   <|> return wclause
+  where parseScalar c = (keyword (=="=") >> fmap (onSingleOp e . EqOp c) (parseValue e))
+                        <|> (keyword (=="!=") >> fmap (onSingleOp e . NeOp c) (parseValue e))
+                        <|> (keyword (==">=") >> fmap (onSingleOp e . GeOp c) (parseValue e))
+                        <|> (keyword (=="<=") >> fmap (onSingleOp e . LeOp c) (parseValue e))
+                        <|> (keyword (==">") >> fmap (onSingleOp e . GtOp c) (parseValue e))
+                        <|> (keyword (=="<") >> fmap (onSingleOp e . LtOp c) (parseValue e))
+                        <|> (keyword (=="LIKE") >> fmap (onSingleOp e . LikeOp c) (parseValue e))
+                        <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . MatchesOp c) (parseValue e))
+                        <|> (keyword (=="NOT") >> ((keyword (=="LIKE") >> fmap (onSingleOp e . NotLikeOp c) (parseValue e))
+                                                   <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . NotMatchesOp c) (parseValue e))))
+
+        parseAssert c = keyword (=="IS") >> ((keyword (=="NOT") >> keyword (=="NULL") >> return (onAssertOp e (IsNotNullOp c)))
+                                             <|> (keyword (=="NULL") >> return (onAssertOp e (IsNullOp c))))
+
+        parseList c = do keyword (=="IN")
+                         keyword (=="(")
+                         list <- fmap (onListOp e . InOp c) (parseValue e `sepBy` keyword (==","))
+                         keyword (==")")
+                         return list
 
 parseFunctions :: ParserEvents i v w f s -> YqlParser [f]
 parseFunctions e = (keyword (=="|") >> parseFunction e `sepBy` keyword (=="|"))

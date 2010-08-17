@@ -40,34 +40,41 @@ import Test.HUnit (assertBool, assertEqual)
 
 suite :: [Test]
 suite = [ testGroup "Types.hs" [ test0
-                              , test1
-                              , test2
-                              , test3
-                              , test4
-                              , test5
-                              , test6
-                              , test7
-                              , test8
-                              , test9
-                              , test10
-                              , test11
-                              , test12
-                              , test13
-                              , test14
-                              , test15
-                              , test16
-                              , test17
-                              , test18
-                              , test19
-                              , test20
-                              , test21
-                              , test22
-                              , test23
-                              , test24
-                              , test25
-                              , test26
-                              , test27
-                              ]
+                               , test1
+                               , test2
+                               , test3
+                               , test4
+                               , test5
+                               , test6
+                               , test7
+                               , test8
+                               , test9
+                               , test10
+                               , test11
+                               , test12
+                               , test13
+                               , test14
+                               , test15
+                               , test16
+                               , test17
+                               , test18
+                               , test19
+                               , test20
+                               , test21
+                               , test22
+                               , test23
+                               , test24
+                               , test25
+                               , test26
+                               , test27
+                               , test28
+                               , test29
+                               , test30
+                               , test31
+                               , test32
+                               , test33
+                               , test34
+                               ]
         ]
 
 test0 = testCase "show select * without where produces correct stmt" $
@@ -77,31 +84,31 @@ test1 = testCase "show select foo,bar without where produces correct stmt" $
         eq "SELECT foo,bar FROM iyql;" (show $ SELECT ["foo","bar"] "iyql" Nothing [])
 
 test2 = testCase "show select foo with single where clause [txt]" $
-        eq "SELECT foo FROM iyql WHERE foo=\"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [])
+        eq "SELECT foo FROM iyql WHERE foo = \"bar\";" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [])
 
 test3 = testCase "show select pi with single where clause [num]" $
-        eq "SELECT pi FROM iyql WHERE pi=3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") [])
+        eq "SELECT pi FROM iyql WHERE pi = 3.14;" (show $ SELECT ["pi"] "iyql" (Just $ "pi" `OpEq` NumValue "3.14") [])
 
 test4 = testCase "show select foo with single IN clause" $
         eq "SELECT foo FROM iyql WHERE foo IN (\"b\",\"a\",\"r\");" (show $ SELECT ["foo"] "iyql" (Just $ "foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"]) [])
 
 test5 = testCase "show select with where expression with and/or" $
-        do eq "SELECT foo FROM iyql WHERE foo=\"bar\" OR bar=\"foo\" AND pi=3.14;" (show $ SELECT ["foo"] "iyql" (Just $ ("foo" `OpEq` TxtValue "bar") `OpOr` ("bar" `OpEq` TxtValue "foo") `OpAnd` ("pi" `OpEq` NumValue "3.14")) [])
+        do eq "SELECT foo FROM iyql WHERE foo = \"bar\" OR bar = \"foo\" AND pi = 3.14;" (show $ SELECT ["foo"] "iyql" (Just $ ("foo" `OpEq` TxtValue "bar") `OpOr` ("bar" `OpEq` TxtValue "foo") `OpAnd` ("pi" `OpEq` NumValue "3.14")) [])
 
 test6 = testCase "read string creates correct type" $
         do eq (SELECT ["foo","bar"] "iyql" (Just $ ("pi" `OpEq` NumValue "3.14") `OpOr` ("foo" `OpIn` [TxtValue "b",TxtValue "a",TxtValue "r"])) []) (read "select foo,bar from iyql where pi=3.14 or foo in (\"b\",\"a\",\"r\");")
 
 test7 = testCase "show select escapes strings" $
-        do eq "SELECT * FROM iyql WHERE foo=\"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") [])
-           eq "SELECT * FROM iyql WHERE foo=\"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") [])
+        do eq "SELECT * FROM iyql WHERE foo = \"foo\\\"bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo\"bar") [])
+           eq "SELECT * FROM iyql WHERE foo = \"foo'bar\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "foo'bar") [])
 
 test8 = testCase "show select with remote functions" $
         do eq "SELECT * FROM iyql | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
-           eq "SELECT * FROM iyql WHERE foo=\"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo = \"bar\" | iyql() | iyql(a=1) | iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Remote "iyql" [],Remote "iyql" [("a",NumValue "1")],Remote "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test9 = testCase "show select with local functions" $
         do eq "SELECT * FROM iyql | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
-           eq "SELECT * FROM iyql WHERE foo=\"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
+           eq "SELECT * FROM iyql WHERE foo = \"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test10 = testCase "pipeline [execTransform] is in correct order" $
          do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (pipeline myLinker [Local "foo" [],Local "bar" []]))
@@ -165,8 +172,8 @@ test17 = testCase "test readDescXml extracts attributes" $
 
 test18 = testCase "show produces the correct stmt for updates" $ 
          do eq ("UPDATE foobar SET foo=\"bar\";") (show $ UPDATE [("foo",TxtValue "bar")] "foobar" Nothing [])
-            eq ("UPDATE foobar SET f=0,o=2,o=3 WHERE a=0 AND b=1;") (show $ UPDATE [("f",NumValue "0"),("o",NumValue "2"),("o",NumValue "3")] "foobar" (Just $ ("a" `OpEq` NumValue "0") `OpAnd` ("b" `OpEq` NumValue "1")) [])
-            eq ("UPDATE foobar SET foo=\"bar\" WHERE bar=\"foo\" | .json();") (show $ UPDATE [("foo",TxtValue "bar")] "foobar" (Just $ "bar" `OpEq` TxtValue "foo") [Local "json" []])
+            eq ("UPDATE foobar SET f=0,o=2,o=3 WHERE a = 0 AND b = 1;") (show $ UPDATE [("f",NumValue "0"),("o",NumValue "2"),("o",NumValue "3")] "foobar" (Just $ ("a" `OpEq` NumValue "0") `OpAnd` ("b" `OpEq` NumValue "1")) [])
+            eq ("UPDATE foobar SET foo=\"bar\" WHERE bar = \"foo\" | .json();") (show $ UPDATE [("foo",TxtValue "bar")] "foobar" (Just $ "bar" `OpEq` TxtValue "foo") [Local "json" []])
 
 test19 = testCase "read update statements produces the correct type" $ 
          do eq (UPDATE [("foo",TxtValue "bar")] "foobar" Nothing []) (read "update foobar set foo='bar';")
@@ -186,9 +193,9 @@ test22 = testCase "show produces the correct stmt for updates" $
             eq ("INSERT INTO foobar (a,b) VALUES (0,1);") (show $ INSERT [("a",NumValue "0"),("b",NumValue "1")] "foobar" [])
 
 test23 = testCase "show produces the correct stmt for deletes" $ 
-         do eq ("DELETE FROM foobar WHERE guid=me;") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [])
+         do eq ("DELETE FROM foobar WHERE guid = me;") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [])
             eq ("DELETE FROM foobar;") (show $ DELETE "foobar" Nothing [])
-            eq ("DELETE FROM foobar WHERE guid=me | .diagnostics();") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [Local "diagnostics" []])
+            eq ("DELETE FROM foobar WHERE guid = me | .diagnostics();") (show $ DELETE "foobar" (Just $ "guid" `OpEq` MeValue) [Local "diagnostics" []])
 
 test24 = testCase "read delete statements produces the correct type" $
          do eq (DELETE "foobar" Nothing []) (read "delete from foobar;")
@@ -206,3 +213,37 @@ test26 = testCase "read show tables statements produces the correct type" $
 test27 = testCase "show produces the correct stmt for show tables" $
          do eq ("SHOW TABLES;") (show $ SHOWTABLES [])
             eq ("SHOW TABLES | .iyql();") (show $ SHOWTABLES [Local "iyql" []])
+
+test28 = testCase "show produces the correct stmt using local filter [like]" $
+         do eq "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") [])
+            eq "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") [])
+            
+test29 = testCase "show produces the correct stmt using local filter [matches]" $
+         do eq "SELECT * FROM iyql WHERE foo MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpMatches` TxtValue "iyql%") [])
+            eq "SELECT * FROM iyql WHERE foo NOT MATCHES \"iyql%\";" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNotMatches` TxtValue "iyql%") [])
+
+test30 = testCase "show produces the correct stmt using local filters [is null]" $
+         do eq "SELECT * FROM iyql WHERE foo IS NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNull "foo") [])
+            eq "SELECT * FROM iyql WHERE foo IS NOT NULL;" (show $ SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") [])
+
+test31 = testCase "show produces the correct stmt using local filters [!=,<,>,<=,>=]" $
+         do eq "SELECT * FROM iyql WHERE foo != 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") [])
+            eq "SELECT * FROM iyql WHERE foo > 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") [])
+            eq "SELECT * FROM iyql WHERE foo < 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") [])
+            eq "SELECT * FROM iyql WHERE foo >= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") [])
+            eq "SELECT * FROM iyql WHERE foo <= 7;" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") [])
+
+test32 = testCase "read parses the correct statement using local filters [like]" $
+         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLike` TxtValue "iyql%") []) (read "SELECT * FROM iyql WHERE foo LIKE \"iyql%\";")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNotLike` TxtValue "iyql%") []) (read "SELECT * FROM iyql WHERE foo NOT LIKE \"iyql%\";" )
+            
+test33 = testCase "read parses the correct stmt using local filters [is null]" $
+         do eq (SELECT ["*"] "iyql" (Just $ OpIsNull "foo") []) (read "SELECT * FROM iyql WHERE foo IS NULL;")
+            eq (SELECT ["*"] "iyql" (Just $ OpIsNotNull "foo") []) (read "SELECT * FROM iyql WHERE foo IS NOT NULL;")
+
+test34 = testCase "read parses the correct stmt using local filters [!=,<,>,<=,>=]" $
+         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpNe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo != 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGt` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo > 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLt` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo < 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpGe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo >= 7;")
+            eq (SELECT ["*"] "iyql" (Just $ "foo" `OpLe` NumValue "7") []) (read "SELECT * FROM iyql WHERE foo <= 7;")
