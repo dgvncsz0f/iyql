@@ -73,13 +73,16 @@ fileLoad file = do valid <- doesFileExist file
 
 -- | Tells the minimum security level required to perform this
 -- statament.
-executeDesc :: (MonadIO m,HttpClient m,Yql y) => y -> String -> String -> OutputT m Description
-executeDesc y t env = execute y ldd (DESC t [Local "request" [("env",TxtValue env)]]) >>= parseXml
+executeDesc :: (MonadIO m,HttpClient m,Yql y) => y -> String -> [String] -> OutputT m Description
+executeDesc y t envs = execute y ldd (DESC t funcs) >>= parseXml
     where parseXml xml = case (xmlParse xml)
                          of Just doc -> case (readDescXml doc)
                                         of Just rst -> return rst
                                            Nothing  -> fail $ "couldn't desc table " ++ t
                             Nothing  -> fail "error parsing xml"
+
+          funcs | null envs = [] 
+                | otherwise = [Local "request" [("env",TxtValue env) | env <- envs]]
 
 emptyRequest :: R.Request
 emptyRequest = R.ReqHttp { R.version    = R.Http11
@@ -98,7 +101,7 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
                                  , R.port       = portNumber
                                  , R.pathComps  = yqlPath
                                  , R.method     = httpMethod
-                                 , R.qString    = R.fromList [("q",show preparedStmt),("env","store://datatables.org/alltableswithkeys")]
+                                 , R.qString    = R.fromList [("q",show preparedStmt)]
                                  }
   where yqlPath
           | security d `elem` [User,App] = ["","v1","yql"]
@@ -137,7 +140,7 @@ class Yql y where
   execute y l stmt = do mkRequest   <- fmap execBefore (ld l stmt)
                         mkResponse  <- fmap execAfter (ld l stmt)
                         mkOutput    <- fmap execTransform (ld l stmt)
-                        tableDesc   <- descTable (R.findWithDefault ("env","store://datatables.org/alltableswithkeys") . R.qString . mkRequest $ emptyRequest)
+                        tableDesc   <- descTable (R.find (=="env") . R.qString . mkRequest $ emptyRequest)
                         response    <- lift (runOAuth $ do credentials y (security tableDesc)
                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ (myRequest tableDesc) { R.host = endpoint y } ))
                         return $ mkOutput (toString (mkResponse response))

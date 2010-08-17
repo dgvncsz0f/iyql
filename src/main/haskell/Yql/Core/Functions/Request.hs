@@ -29,7 +29,7 @@ module Yql.Core.Functions.Request
        ) where
 
 import Yql.Core.Types
-import Network.OAuth.Http.Request
+import Network.OAuth.Http.Request as R
 
 -- | Change the format parameter
 yqlRequest :: [(String,Value)] -> Maybe Exec
@@ -39,4 +39,4 @@ yqlRequest vs = Just (Before func)
 
         params = map (\(k,v) -> (k,myShow v)) vs
 
-        func r = r { qString = replaces params (qString r) }
+        func r = r { qString = foldr R.insert (qString r) params }
