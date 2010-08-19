@@ -202,7 +202,7 @@ instance SessionMgr a => Yql (Backend a) where
 
           accUrl  = fromJust . R.parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
 
-          authUrl = R.findWithDefault ("xoauth_request_auth_url",error "xoauth_request_auth_url not found") . oauthParams
+          authUrl = head . R.find (=="xoauth_request_auth_url") . oauthParams
 
           expiration offset token = let timeout = read . R.findWithDefault ("oauth_expires_in","3600") 
                                                        . oauthParams $ token
