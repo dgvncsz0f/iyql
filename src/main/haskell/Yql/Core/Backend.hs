@@ -37,6 +37,7 @@ module Yql.Core.Backend
        , fileLoad
        ) where
 
+import Yql.Cfg
 import Yql.Core.Types
 import Yql.Core.Ldd
 import Yql.Core.Session
@@ -179,8 +180,10 @@ instance SessionMgr a => Yql (Backend a) where
   credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
   credentials be App  = ignite (application be)
   credentials be User = do token_ <- liftIO (load (sessionMgr be))
+                           reqUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_reqtoken_url" defReqUrl)
+                           accUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_acctoken_url" defAccUrl)
                            case token_
-                             of Nothing               -> do ignite (application be)
+                             of Nothing               -> do ignite (application be) 
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
@@ -198,9 +201,8 @@ instance SessionMgr a => Yql (Backend a) where
                                                             cliAskAuthorization authUrl
                                                             oauthRequest PLAINTEXT Nothing accUrl
                                                             getToken >>= liftIO . save (sessionMgr be)
-    where reqUrl  = fromJust . R.parseURL $ "https://api.login.yahoo.com/oauth/v2/get_request_token"
-
-          accUrl  = fromJust . R.parseURL $ "https://api.login.yahoo.com/oauth/v2/get_token"
+    where defReqUrl  = "https://api.login.yahoo.com/oauth/v2/get_request_token"
+          defAccUrl  = "https://api.login.yahoo.com/oauth/v2/get_token"
 
           authUrl = head . R.find (=="xoauth_request_auth_url") . oauthParams
 

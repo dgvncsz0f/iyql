@@ -30,6 +30,7 @@ module Yql.Cfg
          -- * Reading
        , cfg 
        , tryCfg
+       , tryUsrCfg
        , usrCfg
        , parseCfg
        , basedir
@@ -63,6 +64,10 @@ tryCfg :: Cfg -> String -> String -> String
 tryCfg (Cfg db) key def = case (lookup key db)
                           of Nothing  -> def
                              Just rst -> rst
+
+-- | Read a config from the user configuration file.
+tryUsrCfg :: String -> String -> IO String
+tryUsrCfg key def = usrCfg >>= \db -> return $ tryCfg db key def
 
 -- | Read a config entry from the configuration file.
 cfg :: FilePath -> IO Cfg
