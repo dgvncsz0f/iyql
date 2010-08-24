@@ -59,9 +59,9 @@ import Network.OAuth.Http.HttpClient
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
-data SessionMgr s => Backend s = YqlBackend { application  :: Application
-                                            , sessionMgr   :: s
-                                            }
+data Backend s = YqlBackend { application  :: Application
+                            , sessionMgr   :: s
+                            }
 
 fileSave :: FilePath -> Token -> IO ()
 fileSave = encodeFile
@@ -144,7 +144,10 @@ class Yql y where
 
   -- | Returns the credentials that are used to perform the request.
   credentials :: (MonadIO m,HttpClient m) => y -> Security -> OAuthMonad m ()
-
+  
+  -- | Reset credentials so next time starts without any saved token
+  purgeCredentials :: (MonadIO m,HttpClient m) => y -> OAuthMonad m ()
+  
   -- | Given an statement executes the query on yql. This function is
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
@@ -176,6 +179,8 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
 
 instance SessionMgr a => Yql (Backend a) where
   endpoint _ = "query.yahooapis.com"
+  
+  purgeCredentials be = liftIO $ unlink (sessionMgr be)
 
   credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
   credentials be App  = ignite (application be)

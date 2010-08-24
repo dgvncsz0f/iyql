@@ -38,6 +38,7 @@ import Yql.Core.Parser
 import Yql.Core.Types
 import Yql.Core.Ldd
 import Yql.UI.CLI.Input
+import Yql.UI.CLI.Command
 import qualified Yql.UI.CLI.Options as O
 
 outputVersion :: InputT IO ()
@@ -57,9 +58,13 @@ execYql y input = case (parseYql input builder)
                                       outputStrLn output
 
 execCmd :: Yql y => y -> String -> InputT IO Bool
-execCmd _ ":quit" = return False
-execCmd _ cmd     = do outputStrLn (cmd ++ ": command not found")
-                       return True
+execCmd _ ":quit"   = return False
+execCmd y ":logout" = do liftIO $ runCommand logout y []
+                         return True
+execCmd y ":whoami" = do liftIO $ runCommand whoami y []
+                         return True
+execCmd _ cmd       = do outputStrLn (cmd ++ ": command not found")
+                         return True
 
 exec :: Yql y => y -> InputT IO ()
 exec y = do argv <- liftIO getArgs

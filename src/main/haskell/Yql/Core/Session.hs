@@ -64,12 +64,18 @@ class SessionMgr s where
   -- | Loads the latest saved token.
   load :: s -> IO (Maybe Token)
   
+  -- | Delete the latest saved token.
+  unlink :: s -> IO ()
+  
   -- | Returns the time of the latest successfully save operation.
   mtime :: s -> IO (Maybe UTCTime)
 
 instance SessionMgr SessionBackend where
   save (FileStorage file) tk = augument tk >>= fileSessionSave file
   save DevNullStorage _ = return ()
+  
+  unlink (FileStorage file) = removeFile file
+  unlink DevNullStorage     = return ()
   
   load (FileStorage file)    = fmap (fmap (snd . unToken)) (fileSessionLoad file)
   load DevNullStorage  = return Nothing

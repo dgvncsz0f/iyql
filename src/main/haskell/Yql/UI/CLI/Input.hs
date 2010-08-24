@@ -55,6 +55,9 @@ parPrompt = snd prompt
 appendHistory :: String -> InputT IO ()
 appendHistory e = fmap (addHistoryUnlessConsecutiveDupe e) get >>= put
 
+command :: String -> Bool
+command = (":" `isPrefixOf`) . dropWhile isSpace
+
 next :: InputT IO (Maybe String)
 next = next_ defPrompt
   where next_ p = do minput <- getInputLine p
@@ -63,6 +66,7 @@ next = next_ defPrompt
                           Just input 
                             | empty input    -> next_ defPrompt
                             | scEnding input -> return (Just input)
+                            | command input  -> return (Just input)
                             | otherwise      -> do Just suffix <- fmap (`mplus` Just "") (next_ parPrompt)
                                                    return (Just $ input ++" "++ suffix)
         
@@ -81,5 +85,3 @@ loop ex = do minput <- next
                                           loop ex
   where execCmd  = execCommand ex
         execStmt = execStatement ex
-        
-        command  = (":" `isSuffixOf`) . dropWhile isSpace
