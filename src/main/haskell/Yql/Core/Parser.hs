@@ -70,6 +70,7 @@ data ListOperator i v = InOp i [v]
 data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
                                            , onTxtValue   :: String -> v
                                            , onNumValue   :: String -> v
+                                           , onSubSelect  :: s -> v
                                            , onMeValue    :: v
                                            , onSelect     :: [i] -> i -> Maybe w -> Maybe Limit -> Maybe Limit -> [f] -> s
                                            , onUpdate     :: [(i,v)] -> i -> Maybe w -> [f] -> s
@@ -92,20 +93,23 @@ data ParserEvents i v w f s = ParserEvents { onIdentifier :: String -> i
 parseYql :: String -> ParserEvents i v w f s -> Either ParseError s
 parseYql input e = case tokStream
                    of Left err     -> Left err
-                      Right input_ -> runParser (parseYql_ e) () "stdin" input_
+                      Right input_ -> runParser myParser () "stdin" input_
   where tokStream = runParser scan "" "stdin" input
+        
+        myParser = do expr <- parseYql_ e
+                      tkEof
+                      return expr
 
 parseYql_ :: ParserEvents i v w f s -> YqlParser s
-parseYql_ e = do r <- (parseDesc e
-                       <|> parseSelect e
-                       <|> parseUpdate e
-                       <|> parseInsert e
-                       <|> parseDelete e
-                       <|> parseShowTables e
-                       <|> parseUse e)
-                 keyword (==";")
-                 tkEof
-                 return r
+parseYql_ e = do (parseDesc e >>= semiColon)
+                 <|> (parseSelect e >>= semiColon )
+                 <|> (parseUpdate e >>= semiColon )
+                 <|> (parseInsert e >>= semiColon )
+                 <|> (parseDelete e >>= semiColon )
+                 <|> (parseShowTables e >>= semiColon)
+                 <|> parseUse e
+  where semiColon v = do keyword (==";")
+                         return v
 
 quoted :: YqlParser String
 quoted = accept test
@@ -144,14 +148,12 @@ parseDesc :: ParserEvents i v w f s -> YqlParser s
 parseDesc e = do keyword (=="DESC")
                  t <- parseIdentifier e
                  f <- parseFunctions e
-                 tkEof
                  return (onDesc e t f)
 
 parseShowTables :: ParserEvents i v w f s -> YqlParser s
 parseShowTables e = do keyword (=="SHOW")
                        keyword (=="TABLES")
                        f <- parseFunctions e
-                       tkEof
                        return (onShowTables e f)
 
 parseUse :: ParserEvents i v w f s -> YqlParser s
@@ -159,6 +161,7 @@ parseUse e = do keyword (=="USE")
                 url  <- quoted
                 keyword (=="AS")
                 as   <- parseIdentifier e
+                keyword (==";")
                 stmt <- parseYql_ e
                 return (onUse e url as stmt)
 
@@ -209,7 +212,7 @@ parseUpdate e = do keyword (=="UPDATE")
         
         parseSet = do k <- parseIdentifier e
                       keyword (=="=")
-                      v <- parseValue e
+                      v <- parseValue False e
                       return (k,v)
 
 parseDelete :: ParserEvents i v w f s -> YqlParser s
@@ -232,7 +235,7 @@ parseInsert e = do keyword (=="INSERT")
                    keyword (==")")
                    keyword (=="VALUES")
                    keyword (=="(")
-                   v <- parseValue e `sepBy` keyword (==",")
+                   v <- parseValue False e `sepBy` keyword (==",")
                    keyword (==")")
                    f <- parseFunctions e
                    return (onInsert e (zip c v) t f)
@@ -240,11 +243,13 @@ parseInsert e = do keyword (=="INSERT")
 parseIdentifier :: ParserEvents i v w f s -> YqlParser i
 parseIdentifier e = fmap (onIdentifier e) symbol_
 
-parseValue :: ParserEvents i v w f s -> YqlParser v
-parseValue e = fmap (onTxtValue e) quoted
-               <|> fmap (onNumValue e) numeric
-               <|> fmap (const $ onMeValue e) (keyword (=="ME"))
-               <|> fmap (error "TODO:fixme") (parseSelect e)
+parseValue :: Bool -> ParserEvents i v w f s -> YqlParser v
+parseValue allowss e = fmap (onTxtValue e) quoted
+                       <|> fmap (onNumValue e) numeric
+                       <|> fmap (const $ onMeValue e) (keyword (=="ME"))
+                       <|> if (allowss)
+                           then fmap (onSubSelect e) (parseSelect e)
+                           else fail "expecting Numeric|String|me"
 
 parseWhere :: ParserEvents i v w f s -> YqlParser w
 parseWhere e = do c       <- parseIdentifier e
@@ -254,23 +259,23 @@ parseWhere e = do c       <- parseIdentifier e
                   (keyword (=="AND") >> fmap (onAndExpr e wclause) (parseWhere e))
                    <|> (keyword (=="OR") >> fmap (onOrExpr e wclause) (parseWhere e))
                    <|> return wclause
-  where parseScalar c = (keyword (=="=") >> fmap (onSingleOp e . EqOp c) (parseValue e))
-                        <|> (keyword (=="!=") >> fmap (onSingleOp e . NeOp c) (parseValue e))
-                        <|> (keyword (==">=") >> fmap (onSingleOp e . GeOp c) (parseValue e))
-                        <|> (keyword (=="<=") >> fmap (onSingleOp e . LeOp c) (parseValue e))
-                        <|> (keyword (==">") >> fmap (onSingleOp e . GtOp c) (parseValue e))
-                        <|> (keyword (=="<") >> fmap (onSingleOp e . LtOp c) (parseValue e))
-                        <|> (keyword (=="LIKE") >> fmap (onSingleOp e . LikeOp c) (parseValue e))
-                        <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . MatchesOp c) (parseValue e))
-                        <|> (keyword (=="NOT") >> ((keyword (=="LIKE") >> fmap (onSingleOp e . NotLikeOp c) (parseValue e))
-                                                   <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . NotMatchesOp c) (parseValue e))))
+  where parseScalar c = (keyword (=="=") >> fmap (onSingleOp e . EqOp c) (parseValue False e))
+                        <|> (keyword (=="!=") >> fmap (onSingleOp e . NeOp c) (parseValue False e))
+                        <|> (keyword (==">=") >> fmap (onSingleOp e . GeOp c) (parseValue False e))
+                        <|> (keyword (=="<=") >> fmap (onSingleOp e . LeOp c) (parseValue False e))
+                        <|> (keyword (==">") >> fmap (onSingleOp e . GtOp c) (parseValue False e))
+                        <|> (keyword (=="<") >> fmap (onSingleOp e . LtOp c) (parseValue False e))
+                        <|> (keyword (=="LIKE") >> fmap (onSingleOp e . LikeOp c) (parseValue False e))
+                        <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . MatchesOp c) (parseValue False e))
+                        <|> (keyword (=="NOT") >> ((keyword (=="LIKE") >> fmap (onSingleOp e . NotLikeOp c) (parseValue False e))
+                                                   <|> (keyword (=="MATCHES") >> fmap (onSingleOp e . NotMatchesOp c) (parseValue False e))))
 
         parseAssert c = keyword (=="IS") >> ((keyword (=="NOT") >> keyword (=="NULL") >> return (onAssertOp e (IsNotNullOp c)))
                                              <|> (keyword (=="NULL") >> return (onAssertOp e (IsNullOp c))))
 
         parseList c = do keyword (=="IN")
                          keyword (=="(")
-                         list <- fmap (onListOp e . InOp c) (parseValue e `sepBy` keyword (==","))
+                         list <- fmap (onListOp e . InOp c) (parseValue True e `sepBy` keyword (==","))
                          keyword (==")")
                          return list
 
@@ -286,7 +291,7 @@ parseFunction e = do n <- symbol_
                      mkFunc n argv
   where arguments = do k <- parseIdentifier e
                        keyword (=="=")
-                       v <- parseValue e
+                       v <- parseValue False e
                        return (k,v)
 
         mkFunc ('.':n) argv = return (onLocalFunc e (onIdentifier e n) argv)

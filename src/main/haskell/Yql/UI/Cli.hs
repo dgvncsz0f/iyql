@@ -64,9 +64,9 @@ execCmd y ":logout" = do liftIO $ runCommand logout y []
                          return True
 execCmd y ":whoami" = do liftIO $ runCommand whoami y []
                          return True
-execCmd y ":license" = do liftIO $ putStrLn "http://github.com/dsouza/iyql/blob/master/LICENSE"
+execCmd _ ":license" = do liftIO $ putStrLn "http://github.com/dsouza/iyql/blob/master/LICENSE"
                           return True
-execCmd y ":help"   = do liftIO $ putStrLn $ intercalate "\n" 
+execCmd _ ":help"   = do liftIO $ putStrLn $ intercalate "\n" 
                                            $ map (intercalate "\t\t") $ [ [":quit",    "exit iyql"]
                                                                         , [":whoami",  "the current user"]
                                                                         , [":logout",  "removes the saved token"]

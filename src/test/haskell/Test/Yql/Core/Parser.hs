@@ -75,6 +75,7 @@ suite = [ testGroup "Parser.hs" [ test0
                                 , test34
                                 , test35
                                 , test36
+                                , test37
                                 ]
         ]
 
@@ -204,6 +205,9 @@ test35 = testCase "single use statements" $
 test36 = testCase "multiple use statements" $
          do eq "USE \"foo\" AS f; USE \"bar\" AS b; USE \"foobar\" AS fb; SELECT * FROM foobar;" (runYqlParser_ "use 'foo' as f; use 'bar' as b; use 'foobar' as fb; select * from foobar;")
 
+test37 = testCase "select with subqueries" $
+         do eq "SELECT * FROM foo WHERE id IN (SELECT id FROM bar WHERE age>2;);" (runYqlParser_ "select * from foo where id in (select id from bar where age>2);")
+
 newtype LexerToken = LexerToken (String,TokenT)
                    deriving (Show)
 
@@ -219,6 +223,7 @@ showLocalLimit (Just (o,l)) = " LIMIT "++ show l ++" OFFSET "++ show o
 stringBuilder = ParserEvents { onIdentifier = id
                              , onTxtValue   = mkValue
                              , onNumValue   = id
+                             , onSubSelect  = id
                              , onMeValue    = "me"
                              , onSelect     = mkSelect
                              , onUse        = mkUse
@@ -285,4 +290,4 @@ runYqlParser input = case (parseYql input stringBuilder)
 runYqlParser_ :: String -> String
 runYqlParser_ input = case (parseYql input stringBuilder)
                           of Right output -> output
-                             Left err     -> error "parse error"
+                             Left err     -> error ("parse error: " ++ (show err))

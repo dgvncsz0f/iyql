@@ -84,6 +84,8 @@ suite = [ testGroup "Types.hs" [ test0
                                , test42
                                , test43
                                , test44
+                               , test45
+                               , test46
                                ]
         ]
 
@@ -300,3 +302,9 @@ test43 = testCase "showTables returns true for show tables statements" $
 test44 = testCase "desc returns true for desc statements" $
          do ok (desc $ DESC "" [])
             ok (desc $ USE "" "" (DESC "" []))
+
+test45 = testCase "showStmt shows subselects properly" $
+         do eq ("SELECT * FROM iyql WHERE foo IN (SELECT id FROM iyql WHERE bar > 7);") (showStmt $ SELECT ["*"] "iyql" (Just $ "foo" `OpIn` [SubSelect $ SELECT ["id"] "iyql" (Just $ "bar" `OpGt` (NumValue "7")) Nothing Nothing []]) Nothing Nothing [])
+
+test46 = testCase "read select with subqueries" $
+         do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpIn` [SubSelect $ SELECT ["id"] "iyql" (Just $ "bar" `OpGt` (NumValue "7")) Nothing Nothing []]) Nothing Nothing []) (read "select * from iyql where foo in (select id from iyql where bar>7);")

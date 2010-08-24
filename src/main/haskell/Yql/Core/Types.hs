@@ -76,6 +76,7 @@ import Control.Monad
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
            | NumValue String
+           | SubSelect Expression
            | MeValue
            deriving (Eq)
 
@@ -174,6 +175,7 @@ builder :: ParserEvents String Value Where Function Expression
 builder = ParserEvents { onIdentifier = id
                        , onTxtValue   = TxtValue
                        , onNumValue   = NumValue
+                       , onSubSelect  = SubSelect
                        , onMeValue    = MeValue
                        , onUse        = USE
                        , onSelect     = SELECT
@@ -258,13 +260,21 @@ remote _            = False
 
 -- | Extracts all tables in use in the statement
 tables :: Expression -> [String]
-tables (SELECT _ t _ _ _ _) = [t]
-tables (DESC t _)           = [t]
-tables (UPDATE _ t _ _)     = [t]
-tables (INSERT _ t _)       = [t]
-tables (DELETE t _ _)       = [t]
-tables (SHOWTABLES _)       = []
-tables (USE _ _ stmt)       = tables stmt
+tables stmt = case stmt 
+              of (SELECT _ t (Just w) _ _ _) -> t : walkWhere w
+                 (SELECT _ t Nothing _ _ _)  -> [t]
+                 (DESC t _)                  -> [t]
+                 (INSERT _ t _)              -> [t]
+                 (DELETE t _ _)              -> [t]
+                 (UPDATE _ t _ _)            -> [t]
+                 (SHOWTABLES _)              -> []
+                 (USE _ _ stmt')             -> tables stmt'
+  where walkWhere (_ `OpIn` []) = []
+        walkWhere (_ `OpIn` vs) = let subselects = filter (\v -> case v of (SubSelect _) -> True; _ -> False) vs
+                                  in concatMap (\(SubSelect v) -> tables v) subselects
+        walkWhere (l `OpAnd` r) = walkWhere l ++ walkWhere r
+        walkWhere (l `OpOr` r)  = walkWhere l ++ walkWhere r
+        walkWhere _             = []
 
 -- | Test whether or not a query contains the ME keyword in the where
 -- clause
@@ -392,9 +402,10 @@ showWhere (OpIsNull c)         = c ++ " IS NULL"
 showWhere (OpIsNotNull c)      = c ++ " IS NOT NULL"
 
 showValue :: Value -> String
-showValue (MeValue)    = "me"
-showValue (NumValue v) = v
-showValue (TxtValue v) = ("\""++ escape v ++"\"")
+showValue (MeValue)     = "me"
+showValue (SubSelect s) = init (showStmt s)
+showValue (NumValue v)  = v
+showValue (TxtValue v)  = ("\""++ escape v ++"\"")
   where escape ('"':xs) = '\\' : '"' : escape xs
         escape (x:xs)   = x : escape xs
         escape []       = []
