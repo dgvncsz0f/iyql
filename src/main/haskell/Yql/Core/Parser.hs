@@ -96,13 +96,16 @@ parseYql input e = case tokStream
   where tokStream = runParser scan "" "stdin" input
 
 parseYql_ :: ParserEvents i v w f s -> YqlParser s
-parseYql_ e = parseDesc e
-              <|> parseSelect e
-              <|> parseUpdate e
-              <|> parseInsert e
-              <|> parseDelete e
-              <|> parseShowTables e
-              <|> parseUse e
+parseYql_ e = do r <- (parseDesc e
+                       <|> parseSelect e
+                       <|> parseUpdate e
+                       <|> parseInsert e
+                       <|> parseDelete e
+                       <|> parseShowTables e
+                       <|> parseUse e)
+                 keyword (==";")
+                 tkEof
+                 return r
 
 quoted :: YqlParser String
 quoted = accept test
@@ -141,7 +144,6 @@ parseDesc :: ParserEvents i v w f s -> YqlParser s
 parseDesc e = do keyword (=="DESC")
                  t <- parseIdentifier e
                  f <- parseFunctions e
-                 keyword (==";")
                  tkEof
                  return (onDesc e t f)
 
@@ -149,7 +151,6 @@ parseShowTables :: ParserEvents i v w f s -> YqlParser s
 parseShowTables e = do keyword (=="SHOW")
                        keyword (=="TABLES")
                        f <- parseFunctions e
-                       keyword (==";")
                        tkEof
                        return (onShowTables e f)
 
@@ -158,7 +159,6 @@ parseUse e = do keyword (=="USE")
                 url  <- quoted
                 keyword (=="AS")
                 as   <- parseIdentifier e
-                keyword (==";")
                 stmt <- parseYql_ e
                 return (onUse e url as stmt)
 
@@ -175,8 +175,6 @@ parseSelect e = do keyword (=="SELECT")
                    ll <- localLimit
                          <|> return Nothing
                    f <- parseFunctions e
-                   keyword (==";")
-                   tkEof
                    return (onSelect e c t w rl ll f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
@@ -205,8 +203,6 @@ parseUpdate e = do keyword (=="UPDATE")
                    w <- whereClause
                         <|> return Nothing
                    f <- parseFunctions e
-                   keyword (==";")
-                   tkEof
                    return (onUpdate e c t w f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
@@ -223,8 +219,6 @@ parseDelete e = do keyword (=="DELETE")
                    w <- whereClause
                         <|> return Nothing
                    f <- parseFunctions e
-                   keyword (==";")
-                   tkEof
                    return (onDelete e t w f)
   where whereClause = do keyword (=="WHERE")
                          fmap Just (parseWhere e)
@@ -241,8 +235,6 @@ parseInsert e = do keyword (=="INSERT")
                    v <- parseValue e `sepBy` keyword (==",")
                    keyword (==")")
                    f <- parseFunctions e
-                   keyword (==";")
-                   tkEof
                    return (onInsert e (zip c v) t f)
 
 parseIdentifier :: ParserEvents i v w f s -> YqlParser i
@@ -252,6 +244,7 @@ parseValue :: ParserEvents i v w f s -> YqlParser v
 parseValue e = fmap (onTxtValue e) quoted
                <|> fmap (onNumValue e) numeric
                <|> fmap (const $ onMeValue e) (keyword (=="ME"))
+               <|> fmap (error "TODO:fixme") (parseSelect e)
 
 parseWhere :: ParserEvents i v w f s -> YqlParser w
 parseWhere e = do c       <- parseIdentifier e
