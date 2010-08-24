@@ -39,16 +39,17 @@ import Yql.Core.Types
 import Yql.Core.Ldd
 import Yql.UI.CLI.Input
 import Yql.UI.CLI.Command
+import Data.List (intercalate)
 import qualified Yql.UI.CLI.Options as O
 
 outputVersion :: InputT IO ()
 outputVersion = outputStrLn $ "iyql version " ++ showVersion version
 
 outputLicense :: InputT IO ()
-outputLicense = outputStrLn "This is free software. Enter .license to read it"
+outputLicense = outputStrLn "This is free software. Enter :license to read it"
 
 outputHelp :: InputT IO ()
-outputHelp = do outputStrLn "Enter .help for instructions"
+outputHelp = do outputStrLn "Enter :help for instructions"
                 outputStrLn "Enter YQL statements terminated with a \";\""
 
 execYql :: Yql y => y -> String -> InputT IO ()
@@ -62,6 +63,16 @@ execCmd _ ":quit"   = return False
 execCmd y ":logout" = do liftIO $ runCommand logout y []
                          return True
 execCmd y ":whoami" = do liftIO $ runCommand whoami y []
+                         return True
+execCmd y ":license" = do liftIO $ putStrLn "http://github.com/dsouza/iyql/blob/master/LICENSE"
+                          return True
+execCmd y ":help"   = do liftIO $ putStrLn $ intercalate "\n" 
+                                           $ map (intercalate "\t\t") $ [ [":quit",    "exit iyql"]
+                                                                        , [":whoami",  "the current user"]
+                                                                        , [":logout",  "removes the saved token"]
+                                                                        , [":help",    "this message"]
+                                                                        , [":license", "the software license"]
+                                                                        ]
                          return True
 execCmd _ cmd       = do outputStrLn (cmd ++ ": command not found")
                          return True
