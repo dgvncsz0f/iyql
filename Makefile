@@ -9,9 +9,9 @@ HC      = ghc
 HCFLAGS =
 
 MAIN_IYQL = dist/bin/iyql
-MAIN_SRC  = $(shell $(FIND) src/main/haskell/Yql -name \*.hs | grep -v '^\.')
+MAIN_SRC  = $(foreach d,$(shell $(FIND) src/main/haskell/Yql -type d),$(wildcard $(d)/*.hs))
 TEST_IYQL = dist/bin/test_iyql
-TEST_SRC  = $(shell $(FIND) src/test/haskell/Test/Yql -name \*.hs | grep -v '^\.')
+TEST_SRC  = $(foreach d,$(shell $(FIND) src/test/haskell/Test/Yql -type d),$(wildcard $(d)/*.hs))
 
 .PHONY: default
 default: compile
