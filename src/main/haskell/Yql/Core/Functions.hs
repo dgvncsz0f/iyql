@@ -24,20 +24,21 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Ldd
-       ( ldd
+module Yql.Core.Functions
+       ( database
        ) where
 
 import Yql.Core.Types
 import Yql.Core.Functions.Request
 import Yql.Core.Functions.Tables
 import Yql.Core.Functions.Endpoint
+import qualified Data.Map as M
 
 -- | Default linker
-ldd :: [(String,[(String,Value)] -> Maybe Exec)]
-ldd = [ ("request",yqlRequest)
-      , ("json",const (yqlRequest [("format",TxtValue "json")]))
-      , ("diagnostics",const (yqlRequest [("diagnostics",TxtValue "true")]))
-      , ("tables",tablesTransform)
-      , ("endpoint",yqlEndpoint)
-      ]
+database :: Database
+database = M.fromList [ ("request", yqlRequest)
+                      , ("json", const (yqlRequest [("format",TxtValue "json")]))
+                      , ("diagnostics", const (yqlRequest [("diagnostics",TxtValue "true")]))
+                      , ("tables", tablesTransform)
+                      , ("endpoint", yqlEndpoint)
+                      ]

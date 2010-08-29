@@ -106,8 +106,8 @@ render (Space k d) = (replicate k ' ') ++ render d
 render (Line k d)  = "\n" ++ (replicate k ' ') ++ render d
 render (Text s d)  = s ++ render d
 
-tablesTransform :: [(String,Value)] -> Maybe Exec
-tablesTransform _ = Just (Transform (render . xml2doc))
+tablesTransform :: [(String,Value)] -> Exec
+tablesTransform _ = Transform (render . xml2doc)
 
 norm :: Table -> Table
 norm (Lines cols) = Lines (map fixColumn cols)

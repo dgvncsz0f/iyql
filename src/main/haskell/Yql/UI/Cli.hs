@@ -36,7 +36,7 @@ import Yql.Cfg (basedir)
 import Yql.Core.Backend
 import Yql.Core.Parser
 import Yql.Core.Types
-import Yql.Core.Ldd
+import Yql.Core.Functions
 import Yql.UI.CLI.Input
 import Yql.UI.CLI.Command
 import Data.List (intercalate)
@@ -55,7 +55,7 @@ outputHelp = do outputStrLn "Enter :help for instructions"
 execYql :: Yql y => y -> String -> InputT IO ()
 execYql y input = case (parseYql input builder)
                   of Left err   -> outputStrLn (show err)
-                     Right stmt -> do output <- liftIO (unCurlM (unOutputT (execute y ldd stmt))) >>= return . either id id
+                     Right stmt -> do output <- liftIO (unCurlM (unOutputT (execute y database stmt))) >>= return . either id id
                                       outputStrLn output
 
 execCmd :: Yql y => y -> String -> InputT IO Bool

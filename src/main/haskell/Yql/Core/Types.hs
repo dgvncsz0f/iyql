@@ -34,7 +34,7 @@ module Yql.Core.Types
        , Expression(..)
        , Function(..)
        , Exec(..)
-       , Linker(..)
+       , Database
          -- * Query
        , select
        , update
@@ -58,6 +58,7 @@ module Yql.Core.Types
        , showValue
        , showWhere
          -- * Misc
+       , M.lookup
        , ld'
        , pipeline
        , execBefore
@@ -72,6 +73,9 @@ import Data.Char
 import Network.OAuth.Http.Request hiding (insert,DELETE)
 import Network.OAuth.Http.Response
 import Control.Monad
+import qualified Data.Map as M
+
+type Database = M.Map String ([(String,Value)] -> Exec)
 
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
@@ -138,11 +142,6 @@ data Description = Table { table    :: String
                          }
                  deriving (Eq)
 
--- | Database of exec types.
-class Linker r where
-  -- | Given a function and its arguments returns the executable.
-  ld :: r -> String -> [(String,Value)] -> Maybe Exec
-  
 execTransform :: Exec -> String -> String
 execTransform (Transform f) s = f s
 execTransform (Seq fa fb) s   = execTransform fb (execTransform fa s)
@@ -159,14 +158,14 @@ execAfter (Seq fa fb) r = execAfter fb (execAfter fa r)
 execAfter _ r           = r
 
 -- | Transforms a list of functions into a pipeline using a given linker.
-pipeline :: Monad m => Linker l => l -> [Function] -> m Exec
+pipeline :: Monad m => Database -> [Function] -> m Exec
 pipeline _ []     = return NOp
-pipeline l (f:fs) = case (ld l (name f) (args f))
-                    of Nothing -> fail $ "unknown function: " ++ name f
-                       Just ex -> liftM (ex `Seq`) (pipeline l fs)
+pipeline db (f:fs) = case (M.lookup (name f) db)
+                     of Nothing -> fail $ "unknown function: " ++ name f
+                        Just ex -> liftM (ex (args f) `Seq`) (pipeline db fs)
 
 -- | Extracts the local functions from the statement and creates a pipeline.
-ld' :: (Monad m, Linker l) => l -> Expression -> m Exec
+ld' :: (Monad m) => Database -> Expression -> m Exec
 ld' l stmt = let fs = filter local (functions stmt)
              in pipeline l fs
 
@@ -435,13 +434,3 @@ instance Ord Security where
   compare User _    = GT
   compare App Any   = GT
   compare App User  = LT
-
-instance Linker () where
-  ld _ _ _ = Nothing
-
-instance Linker (String,[(String,Value)] -> Maybe Exec) where
-  ld (k0,f) k1 argv | k1==k0    = (f argv)
-                    | otherwise = Nothing
-
-instance Linker l => Linker [l] where
-  ld r k argv = foldr mplus Nothing (zipWith ($) (map (uncurry . ld) r) (repeat (k,argv)))

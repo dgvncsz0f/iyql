@@ -32,8 +32,8 @@ import Yql.Core.Types
 import Network.OAuth.Http.Request as R
 
 -- | Change the format parameter
-yqlRequest :: [(String,Value)] -> Maybe Exec
-yqlRequest vs = Just (Before func)
+yqlRequest :: [(String,Value)] -> Exec
+yqlRequest vs = Before func
   where myShow (TxtValue v) = v
         myShow v            = show v
 

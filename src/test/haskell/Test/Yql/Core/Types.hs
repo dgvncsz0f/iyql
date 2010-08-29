@@ -31,6 +31,7 @@ module Test.Yql.Core.Types where
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
 import Data.Maybe
+import qualified Data.Map as M
 import Yql.Core.Types
 import Yql.Xml
 import Control.Monad
@@ -128,27 +129,27 @@ test10 = testCase "pipeline [execTransform] is in correct order" $
             eq (Just $ ("bar"++).(++"foo") $ ">") (fmap (($ ">") . execTransform) (pipeline myLinker [Local "foobar2" []]))
             eq (Just $ (++"bar").(++"foo") $ ">") (fmap (($ ">") . execTransform) (pipeline myLinker [Local "foobar3" []]))
             eq (Just $ (++"bar").("foo"++) $ ">") (fmap (($ ">") . execTransform) (pipeline myLinker [Local "foobar4" []]))
-  where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
-                   , ("bar", const (Just (Transform ("bar"++))))
-                   , ("foobar1", const (Just $ Transform ("foo"++) `Seq` Transform ("bar"++)))
-                   , ("foobar2", const (Just $ Transform (++"foo") `Seq` Transform ("bar"++)))
-                   , ("foobar3", const (Just $ Transform (++"foo") `Seq` Transform (++"bar")))
-                   , ("foobar4", const (Just $ Transform ("foo"++) `Seq` Transform (++"bar")))
-                   ] :: [(String,[(String,Value)] -> Maybe Exec)]
+  where myLinker = M.fromList [ ("foo", const (Transform ("foo"++)))
+                              , ("bar", const (Transform ("bar"++)))
+                              , ("foobar1", const (Transform ("foo"++) `Seq` Transform ("bar"++)))
+                              , ("foobar2", const (Transform (++"foo") `Seq` Transform ("bar"++)))
+                              , ("foobar3", const (Transform (++"foo") `Seq` Transform (++"bar")))
+                              , ("foobar4", const (Transform ("foo"++) `Seq` Transform (++"bar")))
+                              ]
 
 test11 = testCase "pipeline generates error when function is not found" $
-         do ok (isNothing $ pipeline () [Local "foo" []])
-            ok (isJust $ pipeline () [])
+         do ok (isNothing $ pipeline M.empty [Local "foo" []])
+            ok (isJust $ pipeline M.empty [])
 
 test12 = testCase "ld [transform] is in correct order" $
          do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform) (ld' myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
-  where myLinker = [ ("foo", const (Just (Transform ("foo"++))))
-                   , ("bar", const (Just (Transform ("bar"++))))
-                   ] :: [(String,[(String,Value)] -> Maybe Exec)]
+  where myLinker = M.fromList [ ("foo", const (Transform ("foo"++)))
+                              , ("bar", const (Transform ("bar"++)))
+                              ]
 
 test13 = testCase "ld generates error when function is not found" $
-         do ok (isNothing $ ld' () (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" []]))
-            ok (isJust $ ld' () (SELECT ["*"] "foobar" Nothing Nothing Nothing []))
+         do ok (isNothing $ ld' M.empty (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" []]))
+            ok (isJust $ ld' M.empty (SELECT ["*"] "foobar" Nothing Nothing Nothing []))
 
 test14 = testCase "show desc produces correct result" $
          do eq ("DESC foobar;") (show $ DESC "foobar" [])

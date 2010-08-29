@@ -39,7 +39,7 @@ module Yql.Core.Backend
 
 import Yql.Cfg
 import Yql.Core.Types
-import Yql.Core.Ldd
+import Yql.Core.Functions
 import Yql.Core.Session
 import Yql.Xml
 import Data.Char
@@ -86,7 +86,7 @@ descTablesIn y envs stmt = case stmt
                                            Nothing  -> fail $ "couldn't desc tables " ++ intercalate "," (tables stmt)
                             Nothing  -> fail "error parsing xml"
           
-          execDesc t = execute y ldd (mkDesc stmt t) >>= parseXml
+          execDesc t = execute y database (mkDesc stmt t) >>= parseXml
           
           mkDesc (USE u a stmt') t = USE u a (mkDesc stmt' t)
           mkDesc _ t               = DESC t funcs
@@ -152,14 +152,14 @@ class Yql y where
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
-  execute :: (MonadIO m,HttpClient m,Linker l) => y -> l -> Expression -> OutputT m String
-  execute y l stmt = do mkRequest   <- fmap execBefore (ld' l stmt)
-                        mkResponse  <- fmap execAfter (ld' l stmt)
-                        mkOutput    <- fmap execTransform (ld' l stmt)
-                        tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest $ emptyRequest) stmt
-                        response    <- lift (runOAuth $ do credentials y (security tableDesc)
-                                                           serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ (myRequest tableDesc) { R.host = endpoint y } ))
-                        return $ mkOutput (toString (mkResponse response))
+  execute :: (MonadIO m,HttpClient m) => y -> Database -> Expression -> OutputT m String
+  execute y db stmt = do mkRequest   <- fmap execBefore (ld' db stmt)
+                         mkResponse  <- fmap execAfter (ld' db stmt)
+                         mkOutput    <- fmap execTransform (ld' db stmt)
+                         tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest $ emptyRequest) stmt
+                         response    <- lift (runOAuth $ do credentials y (security tableDesc)
+                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ (myRequest tableDesc) { R.host = endpoint y } ))
+                         return $ mkOutput (toString (mkResponse response))
 
     where myRequest = yqlRequest stmt
 

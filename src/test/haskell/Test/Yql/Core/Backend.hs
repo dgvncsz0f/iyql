@@ -33,6 +33,7 @@ module Test.Yql.Core.Backend where
 import Yql.Core.Session
 import Yql.Core.Types
 import Yql.Core.Backend
+import qualified Data.Map as M
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Response
 import Network.OAuth.Http.HttpClient
@@ -44,7 +45,7 @@ test0 = testCase "test endpoint returns the string defined" $
         eq "query.yahooapis.com" (endpoint $ YqlBackend undefined DevNullStorage)
 
 test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage) () (read "select title,abstract from search.web where query=\"iyql\";")
+        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False

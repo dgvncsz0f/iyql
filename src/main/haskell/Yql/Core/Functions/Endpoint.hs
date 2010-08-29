@@ -32,8 +32,8 @@ import Yql.Core.Types
 import Network.OAuth.Http.Request
 
 -- | Change the format parameter
-yqlEndpoint :: [(String,Value)] -> Maybe Exec
+yqlEndpoint :: [(String,Value)] -> Exec
 yqlEndpoint vs = case vs 
-                 of [("host",TxtValue h)] -> Just (Before (func h))
-                    _                     -> Nothing
+                 of [("host",TxtValue h)] -> Before (func h)
+                    _                     -> NOp
   where func h r = r { host = h }

@@ -99,6 +99,7 @@ Yql has support for functions. For instance, suppose you want to display the res
    * .request -- add parameters in the request (for instance diagnostics or env);
    * .json -- alias to .request(format="json");
    * .diagnostics -- alias to .request(diagnostics="true");
+   * .endpoint -- use a different yql endpoint, one other than `query.yahooapis.com'
    * .tables -- turns the output into a tabular format;
 
 and its use:
