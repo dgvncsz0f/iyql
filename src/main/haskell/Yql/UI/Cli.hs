@@ -69,11 +69,11 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                             ]
         
         fixSetenv (Command (d,f)) = Command (d,proxy)
-          where proxy argv = do output <- f argv
-                                case output
-                                  of Left out -> do putStrLn out
-                                                    return y
-                                     Right y' -> return y'
+          where proxy n argv = do output <- f n argv
+                                  case output
+                                    of Left out -> do putStrLn out
+                                                      return y
+                                       Right y' -> return y'
 
 outputVersion :: InputT IO ()
 outputVersion = outputStrLn $ "iyql version " ++ showVersion version
@@ -95,7 +95,7 @@ execCmd s y input = case (parseCmd input)
                        Just (link,argv)     -> case (M.lookup link (cmdDB s y))
                                                of Nothing  -> do outputStrLn (input ++ " : unknown command") 
                                                                  return (Just y)
-                                                  Just cmd -> fmap Just (liftIO $ exec cmd argv)
+                                                  Just cmd -> fmap Just (liftIO $ exec cmd link argv)
 
 putenv :: Yql y => y -> [String] -> y
 putenv = foldr (flip setenv)

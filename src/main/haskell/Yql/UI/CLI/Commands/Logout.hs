@@ -33,6 +33,6 @@ import Yql.UI.CLI.Command
 
 -- | Removes any saved oauth_token.
 logout :: SessionMgr s => s -> Command ()
-logout session = Command (doc,const exe)
+logout session = Command (const doc,const (const exe))
   where doc = "Purges any saved oauth token previously"
         exe = unlink session

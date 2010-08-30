@@ -38,33 +38,34 @@ import qualified Data.Map as M
 
 -- | The command is a pair consisting of a) The documentation; and b)
 -- the command itself.
-newtype Command a = Command { runCommand :: (String,[String] -> IO a) }
+newtype Command a = Command { runCommand :: (String -> String,String -> [String] -> IO a) }
 
 -- | The database of available commands
 type Database a = M.Map String (Command a)
 
 dump :: Command String -> Command ()
 dump (Command (d,f)) = Command (d,proxy)
-  where proxy argv = f argv >>= putStrLn
+  where proxy n argv = f n argv >>= putStrLn
 
 bind :: a -> Command b -> Command a
 bind a (Command (d,f)) = Command (d,proxy)
-  where proxy argv = f argv >> return a
+  where proxy n argv = f n argv >> return a
 
 -- | Extracts the help message of the command
-man :: Command a -> String
+man :: Command a -> String -> String
 man = fst . runCommand
 
 -- | Extracts the binary
-exec :: Command a -> [String] -> IO a
+exec :: Command a -> String -> [String] -> IO a
 exec = snd . runCommand
 
 -- | The help command, whith displays all available commands in the database
 help :: Database a -> Command String
-help database = Command (doc,const exe)
+help database = Command (const doc,const (const exe))
   where doc = "This message"
         exe = return $ unlines $ map (manThis 16) (M.toList database)
           where manThis avail (link,cmd) = let diff = max 0 (avail - length link)
-                                           in " :" ++ link ++ (replicate diff ' ') ++ (addMargin (avail+2) (lines (man cmd)))
+                                           in " :" ++ link ++ (replicate diff ' ') ++ (addMargin (avail+2) (lines (man cmd link)))
                 addMargin by (l:ls) = unlines (l : map ((replicate by ' ')++) ls)
+                addMargin _ []      = unlines []
 

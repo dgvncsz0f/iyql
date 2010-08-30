@@ -36,7 +36,7 @@ import Network.OAuth.Http.HttpClient
 
 -- | Removes any saved oauth_token.
 login :: Yql y => y -> Command ()
-login be = Command (doc,const exe)
+login be = Command (const doc,const (const exe))
   where doc = "Execute the oauth authorization flow to perform authenticated requests."
         exe = do unCurlM (runOAuth (credentials be User))
                  return ()

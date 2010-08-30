@@ -35,7 +35,7 @@ import Network.OAuth.Http.Request
 
 -- | Returns the guid of the current user.
 whoami :: SessionMgr s => s -> Command String
-whoami session = Command (doc, const exe)
+whoami session = Command (const doc, const (const exe))
   where doc = "Returns the guid of the current authenticated user (if any)"
         exe = do mtoken <- load session
                  case mtoken

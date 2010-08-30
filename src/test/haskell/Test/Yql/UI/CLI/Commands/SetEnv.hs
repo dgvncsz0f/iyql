@@ -50,19 +50,19 @@ instance Yql MyBackend where
   getenv (MyBackend es)     = es
 
 test0 = testCase "setenv with leading + appends" $ 
-        do output <- exec (E.setenv (MyBackend ["foo","bar"])) ["+foobar"]
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) "" ["+foobar"]
            eq (Right $ MyBackend ["foobar","foo","bar"]) output
 
 test1 = testCase "setenv with leading - deletes" $
-        do output <- exec (E.setenv (MyBackend ["foobar","foo","bar"])) ["-foobar"]
+        do output <- exec (E.setenv (MyBackend ["foobar","foo","bar"])) "" ["-foobar"]
            eq (Right $ MyBackend ["foo","bar"]) output
 
 test2 = testCase "setenv without +/- define" $
-        do output <- exec (E.setenv (MyBackend ["foo","bar"])) ["foobar"]
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) "" ["foobar"]
            eq (Right $ MyBackend ["foobar"]) output
 
 test3 = testCase "setenv without args dump" $
-        do output <- exec (E.setenv (MyBackend ["foo","bar"])) []
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) "" []
            eq (Left $ unlines ["foo","bar"]) output
 
 suite :: [Test]
