@@ -51,12 +51,24 @@ test3 = testCase "testing parseCfg ignores spaces" $
 
 test4 = testCase "parseCfg ignores comments with -- " $
         do eq (fromList [("foo","bar")]) (parseCfg "-- foo -- bar --\n\nfoo:bar-- another -- comment")
-           
+
+test5 = testCase "tryCfgs returns the default when no key is found" $
+        do eq (["foobar"]) (tryCfgs (fromList []) "foobar" ["foobar"])
+
+test6 = testCase "tryCfgs returns the keys found when there is at least one match" $
+        do eq (["foobar"]) (tryCfgs (fromList [("f","foobar"),("o","oobar")]) "f" ["error"])
+
+test7 = testCase "tryCfgs returns all keys found" $
+        do eq (["foobar","foobaz","fuba"]) (tryCfgs (fromList [("f","foobar"),("f","foobaz"),("f","fuba")]) "f" ["error"])
+
 suite :: [Test]
 suite = [ testGroup "Cfg.hs" [ test0
                              , test1
                              , test2
                              , test3
                              , test4
+                             , test5
+                             , test6
+                             , test7
                              ]
         ]
