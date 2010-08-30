@@ -34,9 +34,11 @@ import Yql.Cfg
 import Network.OAuth.Consumer
 
 main :: IO ()
-main = do home   <- basedir
-          config <- usrCfg
-          iyql (backend home config)
-  where backend home config = YqlBackend (Application cfgCKey cfgCSec OOB) (FileStorage (joinPath [home,"oauth_token"]))
-          where cfgCKey = tryCfg config "oauth_consumer_key" "no_ckey"
-                cfgCSec = tryCfg config "oauth_consumer_sec" "no_csec"
+main = do session <- fmap mkSession basedir
+          config  <- usrCfg
+          iyql session (backend session config)
+  where backend session config = YqlBackend (Application cfgCKey cfgCSec OOB) session []
+          where cfgCKey = tryCfg config "oauth_consumer_key" "<<no_ckey>>"
+                cfgCSec = tryCfg config "oauth_consumer_sec" "<<no_csec>>"
+        
+        mkSession home = FileStorage (joinPath [home,"oauth_token"])

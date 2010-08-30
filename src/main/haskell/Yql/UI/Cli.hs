@@ -34,19 +34,49 @@ import Control.Monad.Trans
 import Yql.Version
 import Yql.Cfg (basedir)
 import Yql.Core.Backend
+import Yql.Core.LocalFunction
+import Yql.Core.LocalFunctions.Request
+import Yql.Core.LocalFunctions.Endpoint
+import Yql.Core.LocalFunctions.Tables
+import Yql.Core.Session
 import Yql.Core.Parser
 import Yql.Core.Types
-import Yql.Core.Functions
 import Yql.UI.CLI.Input
 import Yql.UI.CLI.Command
-import Data.List (intercalate)
+import Yql.UI.CLI.Commands.Parser
+import Yql.UI.CLI.Commands.WhoAmI
+import Yql.UI.CLI.Commands.Logout
+import Yql.UI.CLI.Commands.Login
+import qualified Yql.UI.CLI.Commands.SetEnv as E
+import qualified Data.Map as M
 import qualified Yql.UI.CLI.Options as O
+
+funcDB :: Yql.Core.LocalFunction.Database
+funcDB = M.fromList [ ("request", yqlRequest)
+                    , ("json", const (yqlRequest [("format",TxtValue "json")]))
+                    , ("diagnostics", const (yqlRequest [("diagnostics",TxtValue "true")]))
+                    , ("tables", tablesTransform)
+                    , ("endpoint", yqlEndpoint)
+                    ]
+
+cmdDB :: (SessionMgr s, Yql y) => s -> y -> Yql.UI.CLI.Command.Database y
+cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
+  where woHelp = M.fromList [ ("logout", bind y $ logout s)
+                            , ("login", bind y $ login y)
+                            , ("whoami", bind y $ dump $ whoami s)
+                            , ("help", bind y $ help M.empty)
+                            , ("setenv", fixSetenv (E.setenv y))
+                            ]
+        
+        fixSetenv (Command (d,f)) = Command (d,proxy)
+          where proxy argv = do output <- f argv
+                                case output
+                                  of Left out -> do putStrLn out
+                                                    return y
+                                     Right y' -> return y'
 
 outputVersion :: InputT IO ()
 outputVersion = outputStrLn $ "iyql version " ++ showVersion version
-
-outputLicense :: InputT IO ()
-outputLicense = outputStrLn "This is free software. Enter :license to read it"
 
 outputHelp :: InputT IO ()
 outputHelp = do outputStrLn "Enter :help for instructions"
@@ -55,47 +85,40 @@ outputHelp = do outputStrLn "Enter :help for instructions"
 execYql :: Yql y => y -> String -> InputT IO ()
 execYql y input = case (parseYql input builder)
                   of Left err   -> outputStrLn (show err)
-                     Right stmt -> do output <- liftIO (unCurlM (unOutputT (execute y database stmt))) >>= return . either id id
-                                      outputStrLn output
+                     Right stmt -> fmap (either id id) (liftIO (unCurlM (unOutputT (execute y funcDB stmt)))) >>= outputStrLn
 
-execCmd :: Yql y => y -> String -> InputT IO Bool
-execCmd _ ":quit"   = return False
-execCmd y ":logout" = do liftIO $ runCommand logout y []
-                         return True
-execCmd y ":whoami" = do liftIO $ runCommand whoami y []
-                         return True
-execCmd _ ":license" = do liftIO $ putStrLn "http://github.com/dsouza/iyql/blob/master/LICENSE"
-                          return True
-execCmd _ ":help"   = do liftIO $ putStrLn $ intercalate "\n" 
-                                           $ map (intercalate "\t\t") $ [ [":quit",    "exit iyql"]
-                                                                        , [":whoami",  "the current user"]
-                                                                        , [":logout",  "removes the saved token"]
-                                                                        , [":help",    "this message"]
-                                                                        , [":license", "the software license"]
-                                                                        ]
-                         return True
-execCmd _ cmd       = do outputStrLn (cmd ++ ": command not found")
-                         return True
+execCmd :: (SessionMgr s,Yql y) => s -> y -> String -> InputT IO (Maybe y)
+execCmd s y input = case (parseCmd input)
+                    of Nothing              -> do outputStrLn (input ++ " : parse error")
+                                                  return (Just y)
+                       Just ("quit",_)      -> return Nothing
+                       Just (link,argv)     -> case (M.lookup link (cmdDB s y))
+                                               of Nothing  -> do outputStrLn (input ++ " : unknown command") 
+                                                                 return (Just y)
+                                                  Just cmd -> fmap Just (liftIO $ exec cmd argv)
 
-exec :: Yql y => y -> InputT IO ()
-exec y = do argv <- liftIO getArgs
-            case (O.getoptions argv)
-              of Left errors   -> outputStrLn errors
-                 Right actions -> runActions argv actions
+putenv :: Yql y => y -> [String] -> y
+putenv = foldr (flip setenv)
+
+run :: (SessionMgr s,Yql y) => s -> y -> InputT IO ()
+run s y = do argv <- liftIO getArgs
+             case (O.getoptions argv)
+               of Left errors   -> outputStrLn errors
+                  Right actions -> runActions argv actions
   where runActions argv opts
           | O.wantVersion opts  = outputVersion
           | O.wantHelp opts     = outputStrLn $ O.usage argv
           | O.wantExecStmt opts = let O.ExecStmt stmt = head . filter O.execStmt $ opts
                                   in execYql y stmt
-          | otherwise           = do outputVersion
-                                     outputLicense
-                                     outputHelp
-                                     loop (Handler (execCmd y) (execYql y))
-                                     return ()
+          | otherwise           = let newY = putenv y (map (\(O.Env e) -> e) (filter O.env opts))
+                                  in do outputVersion
+                                        outputHelp
+                                        loop newY (Handler (execCmd s) execYql)
+                                        return ()
 
-iyql :: Yql y => y -> IO ()
-iyql y = do myCfg  <- fmap settings basedir
-            runInputT myCfg (exec y)
+iyql :: (SessionMgr s,Yql y) => s -> y -> IO ()
+iyql s y = do myCfg  <- fmap settings basedir
+              runInputT myCfg (run s y)
   where settings home = Settings { complete       = noCompletion
                                  , historyFile    = Just $ joinPath [home,"history"]
                                  , autoAddHistory = False

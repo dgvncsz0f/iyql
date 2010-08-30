@@ -24,12 +24,25 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Version 
-       ( version
-       , showVersion
+module Yql.UI.CLI.Commands.SetEnv
+       ( setenv
        ) where
 
-import Data.Version
+import qualified Yql.Core.Backend as Y
+import Yql.UI.CLI.Command
 
-version :: Version
-version = Version [0,0,2] ["alpha"]
+-- | Removes any saved oauth_token.
+setenv :: Y.Yql y => y -> Command (Either String y)
+setenv be0 = Command (doc, exe)
+  where doc    = unlines [ "Modifies the env parameters that are sent to yql"
+                         , "Examples:"
+                         , "    :setenv +foobar  :: Appends the `foobar' string to the env list"
+                         , "    :setenv -foobar  :: Removes the `foobar' string from the env list"
+                         , "    :setenv foobar   :: Resets the env, leaving only `foobar' string defined"
+                         , "    :setenv          :: Dump the current env list"
+                         ]
+        exe [] = return (Left $ unlines (Y.getenv be0))
+        exe es = return (Right $ foldr fold be0 es)
+          where fold ('+':env) be = Y.setenv be env
+                fold ('-':env) be = Y.unsetenv be env
+                fold (env) be     = Y.setenv (foldr (flip Y.unsetenv) be (Y.getenv be)) env

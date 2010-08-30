@@ -24,11 +24,12 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Functions.Tables
+module Yql.Core.LocalFunctions.Tables
        ( tablesTransform
        ) where
 
 import Yql.Core.Types
+import Yql.Core.LocalFunction
 import Yql.Xml
 import Data.List
 import qualified Data.Map as M

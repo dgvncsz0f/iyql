@@ -35,7 +35,7 @@ import Data.Time
 import Data.Binary
 import System.Locale
 import System.Directory
-import Control.Monad (join)
+import Control.Monad (join,when)
 
 data SessionBackend = FileStorage FilePath
                     | DevNullStorage
@@ -74,7 +74,8 @@ instance SessionMgr SessionBackend where
   save (FileStorage file) tk = augument tk >>= fileSessionSave file
   save DevNullStorage _ = return ()
   
-  unlink (FileStorage file) = removeFile file
+  unlink (FileStorage file) = do shouldRemove <- doesFileExist file 
+                                 when shouldRemove (removeFile file)
   unlink DevNullStorage     = return ()
   
   load (FileStorage file)    = fmap (fmap (snd . unToken)) (fileSessionLoad file)

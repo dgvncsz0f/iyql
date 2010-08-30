@@ -25,37 +25,50 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Test.Yql.Core.Backend where
+module Test.Yql.UI.CLI.Commands.SetEnv where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
-import Yql.Core.Session
-import Yql.Core.Types
 import Yql.Core.Backend
-import qualified Data.Map as M
-import Network.OAuth.Consumer
-import Network.OAuth.Http.Response
-import Network.OAuth.Http.HttpClient
+import Yql.UI.CLI.Command
+import qualified Yql.UI.CLI.Commands.SetEnv as E
+import Data.List
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
-test0 = testCase "test endpoint returns the string defined" $
-        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined DevNullStorage [])
+newtype MyBackend = MyBackend [String]
+                  deriving (Eq,Show)
 
-test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage []) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
-           ok (isRight resp)
-  where isRight (Right _) = True
-        isRight _         = False
+instance Yql MyBackend where
+  endpoint    = undefined
+  credentials = undefined
+  
+  setenv (MyBackend es) e   = MyBackend (e:es)
+  unsetenv (MyBackend es) e = MyBackend (delete e es)
+  getenv (MyBackend es)     = es
+
+test0 = testCase "setenv with leading + appends" $ 
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) ["+foobar"]
+           eq (Right $ MyBackend ["foobar","foo","bar"]) output
+
+test1 = testCase "setenv with leading - deletes" $
+        do output <- exec (E.setenv (MyBackend ["foobar","foo","bar"])) ["-foobar"]
+           eq (Right $ MyBackend ["foo","bar"]) output
+
+test2 = testCase "setenv without +/- define" $
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) ["foobar"]
+           eq (Right $ MyBackend ["foobar"]) output
+
+test3 = testCase "setenv without args dump" $
+        do output <- exec (E.setenv (MyBackend ["foo","bar"])) []
+           eq (Left $ unlines ["foo","bar"]) output
 
 suite :: [Test]
-suite = [ testGroup "Engine.hs" [ test0
-                                , test2
-                                ]
+suite = [ testGroup "Commands/SetEnv.hs" [ test0
+                                        , test1
+                                        , test2
+                                        , test3
+                                        ]
         ]
-
-instance Show Application where
-  showsPrec _ (Application ckey csec OOB)     = showString $ "Application "++ ckey ++" "++ csec ++" OOB"
-  showsPrec _ (Application ckey csec (URL u)) = showString $ "Application "++ ckey ++" "++ csec ++" "++ u

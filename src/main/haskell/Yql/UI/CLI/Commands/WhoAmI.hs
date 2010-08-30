@@ -24,12 +24,20 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Version 
-       ( version
-       , showVersion
+module Yql.UI.CLI.Commands.WhoAmI
+       ( whoami
        ) where
 
-import Data.Version
+import Yql.Core.Session
+import Yql.UI.CLI.Command
+import Network.OAuth.Consumer
+import Network.OAuth.Http.Request
 
-version :: Version
-version = Version [0,0,2] ["alpha"]
+-- | Returns the guid of the current user.
+whoami :: SessionMgr s => s -> Command String
+whoami session = Command (doc, const exe)
+  where doc = "Returns the guid of the current authenticated user (if any)"
+        exe = do mtoken <- load session
+                 case mtoken
+                   of Nothing    -> return "nobody"
+                      Just token -> return (findWithDefault ("xoauth_yahoo_guid","nobody") (oauthParams token))

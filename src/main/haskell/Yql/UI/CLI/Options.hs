@@ -37,6 +37,7 @@ module Yql.UI.CLI.Options
        , verbose
        , help
        , execStmt
+       , env
        ) where
 
 import System.Console.GetOpt
@@ -45,13 +46,14 @@ data Options = Verbose
              | Version
              | Help
              | ExecStmt String
+             | Env String
              deriving (Eq,Show)
 
 options :: [ OptDescr Options ]
-options = [ Option "e" ["execute"] (ReqArg ExecStmt "<stmt>") "Specifies the statement to be sent to yql and print the results to the standard output"
+options = [ Option "x" ["execute"] (ReqArg ExecStmt "<stmt>") "Specifies the statement to be sent to yql and print the results to the standard output"
           , Option "V" ["version"] (NoArg Version)            "Print a version number to the standard output"
-          -- , Option "v" ["verbose"] (NoArg Verbose)            "Print debug information"
           , Option "h" ["help"]    (NoArg Help)               "This message"
+          , Option "e" ["env"]     (ReqArg Env "<env>")       "Default env to load. May be used multiple times"
           ]
 
 usage :: [String] -> String
@@ -69,6 +71,10 @@ verbose _       = False
 help :: Options -> Bool
 help Help = True
 help _    = False
+
+env :: Options -> Bool
+env (Env _) = True
+env _       = False
 
 execStmt :: Options -> Bool
 execStmt (ExecStmt _) = True

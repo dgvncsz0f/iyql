@@ -31,8 +31,11 @@ import qualified Test.Yql.Core.Lexer as A
 import qualified Test.Yql.Core.Parser as B
 import qualified Test.Yql.Core.Types as C
 import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.Functions.Tables as E
+import qualified Test.Yql.Core.LocalFunctions.Tables as E
 import qualified Test.Yql.Cfg as F
+import qualified Test.Yql.UI.CLI.Commands.Parser as G
+import qualified Test.Yql.UI.CLI.Commands.WhoAmI as H
+import qualified Test.Yql.UI.CLI.Commands.SetEnv as I
 
 main :: IO ()
 main = defaultMain $ concat [ A.suite
@@ -41,4 +44,7 @@ main = defaultMain $ concat [ A.suite
                             , D.suite
                             , E.suite
                             , F.suite
+                            , G.suite
+                            , H.suite
+                            , I.suite
                             ]

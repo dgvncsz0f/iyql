@@ -30,15 +30,17 @@ module Yql.UI.CLI.Input
        , loop
        ) where
 
-import Data.Char
 import System.Console.Haskeline
 import System.Console.Haskeline.History
 import Control.Monad.State
+import Data.Maybe
+import Data.Char
 import Data.List
+import Yql.Core.Backend
 
-data EventHandler = Handler { execCommand   :: String -> InputT IO Bool
-                            , execStatement :: String -> InputT IO ()
-                            }
+data EventHandler y = Handler { execCommand   :: y -> String -> InputT IO (Maybe y)
+                              , execStatement :: y -> String -> InputT IO ()
+                              }
 
 empty :: String -> Bool
 empty = all isSpace
@@ -49,8 +51,8 @@ prompt = ("iyql> "," ...> ")
 defPrompt :: String
 defPrompt = fst prompt
 
-parPrompt :: String
-parPrompt = snd prompt
+contPrompt :: String
+contPrompt = snd prompt
 
 appendHistory :: String -> InputT IO ()
 appendHistory e = fmap (addHistoryUnlessConsecutiveDupe e) get >>= put
@@ -67,21 +69,21 @@ next = next_ defPrompt
                             | empty input    -> next_ defPrompt
                             | scEnding input -> return (Just input)
                             | command input  -> return (Just input)
-                            | otherwise      -> do Just suffix <- fmap (`mplus` Just "") (next_ parPrompt)
+                            | otherwise      -> do Just suffix <- fmap (`mplus` Just "") (next_ contPrompt)
                                                    return (Just $ input ++" "++ suffix)
         
         scEnding xs = ";" `isPrefixOf` (dropWhile (isSpace) (reverse xs))
 
-loop :: EventHandler -> InputT IO ()
-loop ex = do minput <- next
-             case minput
-               of Nothing           -> return ()
-                  Just input 
-                    | command input -> do appendHistory input
-                                          continue <- execCmd input
-                                          when continue (loop ex)
-                    | otherwise     -> do appendHistory input
-                                          execStmt input
-                                          loop ex
-  where execCmd  = execCommand ex
-        execStmt = execStatement ex
+loop :: Yql y => y -> EventHandler y -> InputT IO ()
+loop y ex = do minput <- next
+               case minput
+                 of Nothing           -> return ()
+                    Just input 
+                      | command input -> do appendHistory input
+                                            newY <- execCmd input
+                                            when (isJust newY) (loop (fromJust newY) ex)
+                      | otherwise     -> do appendHistory input
+                                            execStmt input
+                                            loop y ex
+  where execCmd  = execCommand ex y
+        execStmt = execStatement ex y

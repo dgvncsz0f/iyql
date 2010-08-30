@@ -33,8 +33,6 @@ module Yql.Core.Types
        , Security(..)
        , Expression(..)
        , Function(..)
-       , Exec(..)
-       , Database
          -- * Query
        , select
        , update
@@ -57,25 +55,13 @@ module Yql.Core.Types
        , showFunc
        , showValue
        , showWhere
-         -- * Misc
-       , M.lookup
-       , ld'
-       , pipeline
-       , execBefore
-       , execAfter
-       , execTransform
        ) where
 
 import Yql.Core.Parser
 import Yql.Xml
 import Data.List hiding (insert,delete)
 import Data.Char
-import Network.OAuth.Http.Request hiding (insert,DELETE)
-import Network.OAuth.Http.Response
 import Control.Monad
-import qualified Data.Map as M
-
-type Database = M.Map String ([(String,Value)] -> Exec)
 
 -- | The different type of values that may appear in a yql statement.
 data Value = TxtValue String
@@ -121,13 +107,6 @@ data Expression = SELECT [String] String (Maybe Where) (Maybe Limit) (Maybe Limi
                 | USE String String Expression
                 deriving (Eq)
 
--- | Local functions that may change a given yql query
-data Exec = Before (Request -> Request)
-          | After (Response -> Response)
-          | Transform (String -> String)
-          | Seq Exec Exec
-          | NOp
-
 -- | The different security level tables may request
 data Security = User    -- ^ Requires 3-legged oauth to perform the request
               | App     -- ^ Requires 2-legged oauth to perform the request
@@ -141,33 +120,6 @@ data Description = Table { table    :: String
                          , https    :: Bool
                          }
                  deriving (Eq)
-
-execTransform :: Exec -> String -> String
-execTransform (Transform f) s = f s
-execTransform (Seq fa fb) s   = execTransform fb (execTransform fa s)
-execTransform _ s             = s
-
-execBefore :: Exec -> Request -> Request
-execBefore (Before f) r  = f r
-execBefore (Seq fa fb) r = execBefore fb (execBefore fa r)
-execBefore _ r           = r
-
-execAfter :: Exec -> Response -> Response
-execAfter (After f) r   = f r
-execAfter (Seq fa fb) r = execAfter fb (execAfter fa r)
-execAfter _ r           = r
-
--- | Transforms a list of functions into a pipeline using a given linker.
-pipeline :: Monad m => Database -> [Function] -> m Exec
-pipeline _ []     = return NOp
-pipeline db (f:fs) = case (M.lookup (name f) db)
-                     of Nothing -> fail $ "unknown function: " ++ name f
-                        Just ex -> liftM (ex (args f) `Seq`) (pipeline db fs)
-
--- | Extracts the local functions from the statement and creates a pipeline.
-ld' :: (Monad m) => Database -> Expression -> m Exec
-ld' l stmt = let fs = filter local (functions stmt)
-             in pipeline l fs
 
 -- | Listen to parser events to build Expression type.
 builder :: ParserEvents String Value Where Function Expression

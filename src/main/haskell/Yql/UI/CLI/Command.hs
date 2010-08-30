@@ -25,28 +25,46 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Yql.UI.CLI.Command
-       ( Command()
-       , runCommand
-       , whoami
-       , logout
+       ( Command(..)
+       , Database
+       , man
+       , exec
+       , help
+       , bind
+       , dump
        ) where
 
-import Yql.Core.Backend
-import Yql.Core.Types
-import Network.OAuth.Consumer
-import Network.OAuth.Http.Request
-import Network.OAuth.Http.HttpClient
+import qualified Data.Map as M
 
--- | Available commands.
-newtype Command y = Command { runCommand :: y -> [String] -> IO () }
+-- | The command is a pair consisting of a) The documentation; and b)
+-- the command itself.
+newtype Command a = Command { runCommand :: (String,[String] -> IO a) }
 
--- | Returns the guid of the current user.
-whoami :: Yql y => Command y
-whoami = Command (\y _ -> exec y >>= putStrLn)
-  where exec y = unCurlM (runOAuth $ do token <- credentials y User >> getToken
-                                        return (findWithDefault ("xoauth_yahoo_guid","nobody") (oauthParams token)))
+-- | The database of available commands
+type Database a = M.Map String (Command a)
 
--- | Removes any saved oauth_token.
-logout :: Yql y => Command y
-logout = Command exec
-  where exec y _ = unCurlM (runOAuth (purgeCredentials y))
+dump :: Command String -> Command ()
+dump (Command (d,f)) = Command (d,proxy)
+  where proxy argv = f argv >>= putStrLn
+
+bind :: a -> Command b -> Command a
+bind a (Command (d,f)) = Command (d,proxy)
+  where proxy argv = f argv >> return a
+
+-- | Extracts the help message of the command
+man :: Command a -> String
+man = fst . runCommand
+
+-- | Extracts the binary
+exec :: Command a -> [String] -> IO a
+exec = snd . runCommand
+
+-- | The help command, whith displays all available commands in the database
+help :: Database a -> Command String
+help database = Command (doc,const exe)
+  where doc = "This message"
+        exe = return $ unlines $ map (manThis 16) (M.toList database)
+          where manThis avail (link,cmd) = let diff = max 0 (avail - length link)
+                                           in " :" ++ link ++ (replicate diff ' ') ++ (addMargin (avail+2) (lines (man cmd)))
+                addMargin by (l:ls) = unlines (l : map ((replicate by ' ')++) ls)
+

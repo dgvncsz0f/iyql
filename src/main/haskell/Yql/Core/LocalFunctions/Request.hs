@@ -24,12 +24,20 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Version 
-       ( version
-       , showVersion
+module Yql.Core.LocalFunctions.Request
+       ( yqlRequest
        ) where
 
-import Data.Version
+import Yql.Core.Types
+import Yql.Core.LocalFunction
+import Network.OAuth.Http.Request as R
 
-version :: Version
-version = Version [0,0,2] ["alpha"]
+-- | Change the format parameter
+yqlRequest :: [(String,Value)] -> Exec
+yqlRequest vs = Before func
+  where myShow (TxtValue v) = v
+        myShow v            = show v
+
+        params = map (\(k,v) -> (k,myShow v)) vs
+
+        func r = r { qString = foldr R.insert (qString r) params }

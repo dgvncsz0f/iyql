@@ -24,12 +24,20 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Version 
-       ( version
-       , showVersion
+module Yql.UI.CLI.Commands.Login
+       ( login
        ) where
 
-import Data.Version
+import Yql.Core.Backend
+import Yql.Core.Types
+import Yql.UI.CLI.Command
+import Network.OAuth.Consumer
+import Network.OAuth.Http.HttpClient
 
-version :: Version
-version = Version [0,0,2] ["alpha"]
+-- | Removes any saved oauth_token.
+login :: Yql y => y -> Command ()
+login be = Command (doc,const exe)
+  where doc = "Execute the oauth authorization flow to perform authenticated requests."
+        exe = do unCurlM (runOAuth (credentials be User))
+                 return ()
+

@@ -32,24 +32,21 @@ module Yql.Core.Backend
        , OutputT()
          -- * Monads
        , unOutputT
-         -- * Session Util
-       , fileSave
-       , fileLoad
        ) where
 
 import Yql.Cfg
 import Yql.Core.Types
-import Yql.Core.Functions
+import Yql.Core.LocalFunction
+import Yql.Core.LocalFunctions.Request
 import Yql.Core.Session
 import Yql.Xml
 import Data.Char
 import Data.Maybe
-import Data.List (isPrefixOf,intercalate)
+import qualified Data.List as L
 import Data.Time
-import Data.Binary
-import System.Directory
 import Control.Monad
 import Control.Monad.Trans
+import qualified Data.Map as M
 import qualified Data.ByteString.Lazy as B
 import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer hiding (application)
@@ -59,18 +56,11 @@ import Network.OAuth.Http.HttpClient
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
-data Backend s = YqlBackend { application  :: Application
-                            , sessionMgr   :: s
+-- | The reference implementation backend available
+data Backend s = YqlBackend { application :: Application -- ^ The applicat that is used to perform 3-legged oauth requests
+                            , sessionMgr  :: s           -- ^ Used for saving/loading oauth tokens
+                            , defaultEnv  :: [String]    -- ^ Default environment to use when performing requests
                             }
-
-fileSave :: FilePath -> Token -> IO ()
-fileSave = encodeFile
-
-fileLoad :: FilePath -> IO (Maybe Token)
-fileLoad file = do valid <- doesFileExist file 
-                   if (valid)
-                     then fmap Just (decodeFile file)
-                     else return Nothing
 
 -- | Tells the minimum security level required to perform this
 -- statament.
@@ -83,10 +73,11 @@ descTablesIn y envs stmt = case stmt
     where parseXml xml = case (xmlParse xml)
                          of Just doc -> case (readDescXml doc)
                                         of Just rst -> return rst
-                                           Nothing  -> fail $ "couldn't desc tables " ++ intercalate "," (tables stmt)
+                                           Nothing  -> fail $ "couldn't desc tables " ++ L.intercalate "," (tables stmt)
                             Nothing  -> fail "error parsing xml"
           
           execDesc t = execute y database (mkDesc stmt t) >>= parseXml
+            where database = M.fromList [("request",yqlRequest)]
           
           mkDesc (USE u a stmt') t = USE u a (mkDesc stmt' t)
           mkDesc _ t               = DESC t funcs
@@ -108,13 +99,13 @@ emptyRequest = R.ReqHttp { R.version    = R.Http11
                          , R.reqPayload = B.empty
                          }
 
-yqlRequest :: Expression -> Description -> R.Request
-yqlRequest stmt d = emptyRequest { R.ssl        = https d
-                                 , R.port       = portNumber
-                                 , R.pathComps  = yqlPath
-                                 , R.method     = httpMethod
-                                 , R.qString    = R.fromList [("q",show $ preparedStmt stmt)]
-                                 }
+mkRequest :: Expression -> [String] -> Description -> R.Request
+mkRequest stmt env d = emptyRequest { R.ssl        = https d
+                                    , R.port       = portNumber
+                                    , R.pathComps  = yqlPath
+                                    , R.method     = httpMethod
+                                    , R.qString    = R.fromList $ ("q",show $ preparedStmt stmt) : map (\e -> ("env",e)) env
+                                    }
   where yqlPath
           | security d `elem` [User,App] = ["","v1","yql"]
           | otherwise                    = ["","v1","public","yql"]
@@ -141,27 +132,33 @@ yqlRequest stmt d = emptyRequest { R.ssl        = https d
 class Yql y where
   -- | Returns the endpoint this backend is pointing to
   endpoint :: y -> String
+  
+  -- | Add a new env that is included in the request
+  setenv :: y -> String -> y
+  
+  -- | Delete an entry from the environment
+  unsetenv :: y -> String -> y
+  
+  -- | Returns the env that are currently loaded
+  getenv :: y -> [String]
 
   -- | Returns the credentials that are used to perform the request.
   credentials :: (MonadIO m,HttpClient m) => y -> Security -> OAuthMonad m ()
-  
-  -- | Reset credentials so next time starts without any saved token
-  purgeCredentials :: (MonadIO m,HttpClient m) => y -> OAuthMonad m ()
   
   -- | Given an statement executes the query on yql. This function is
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
   execute :: (MonadIO m,HttpClient m) => y -> Database -> Expression -> OutputT m String
-  execute y db stmt = do mkRequest   <- fmap execBefore (ld' db stmt)
+  execute y db stmt = do mkRequest'  <- fmap execBefore (ld' db stmt)
                          mkResponse  <- fmap execAfter (ld' db stmt)
                          mkOutput    <- fmap execTransform (ld' db stmt)
-                         tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest $ emptyRequest) stmt
+                         tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
                          response    <- lift (runOAuth $ do credentials y (security tableDesc)
-                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest $ (myRequest tableDesc) { R.host = endpoint y } ))
+                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest' $ (myRequest tableDesc) { R.host = endpoint y } ))
                          return $ mkOutput (toString (mkResponse response))
 
-    where myRequest = yqlRequest stmt
+    where myRequest = mkRequest stmt (getenv y)
 
 toString :: Response -> String
 toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
@@ -174,14 +171,18 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
         contentType = R.find (\s -> map toLower s == "content-type") (rspHeaders resp)
 
         isXML = case contentType
-                of (x:_) -> "text/xml" `isPrefixOf` (dropWhile isSpace x)
+                of (x:_) -> "text/xml" `L.isPrefixOf` dropWhile isSpace x
                    _     -> False
 
 instance SessionMgr a => Yql (Backend a) where
   endpoint _ = "query.yahooapis.com"
   
-  purgeCredentials be = liftIO $ unlink (sessionMgr be)
-
+  setenv be e = be { defaultEnv = e : defaultEnv be }
+  
+  unsetenv be e = be { defaultEnv = L.delete e (defaultEnv be) }
+  
+  getenv = defaultEnv
+  
   credentials _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
   credentials be App  = ignite (application be)
   credentials be User = do token_ <- liftIO (load (sessionMgr be))
@@ -197,10 +198,9 @@ instance SessionMgr a => Yql (Backend a) where
                                   | threeLegged token -> do putToken token
                                                             now    <- liftIO getCurrentTime
                                                             offset <- liftIO $ fmap fromJust (mtime (sessionMgr be))
-                                                            if (now >= expiration offset token)
-                                                              then do oauthRequest PLAINTEXT Nothing accUrl
-                                                                      getToken >>=  liftIO . save (sessionMgr be)
-                                                              else return ()
+                                                            when (now >= expiration offset token) $
+                                                              do oauthRequest PLAINTEXT Nothing accUrl
+                                                                 getToken >>=  liftIO . save (sessionMgr be)
                                   | otherwise         -> do putToken token
                                                             oauthRequest PLAINTEXT Nothing reqUrl
                                                             cliAskAuthorization authUrl

@@ -25,37 +25,40 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Test.Yql.Core.Backend where
+module Test.Yql.UI.CLI.Commands.Parser where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
-import Yql.Core.Session
-import Yql.Core.Types
-import Yql.Core.Backend
-import qualified Data.Map as M
-import Network.OAuth.Consumer
-import Network.OAuth.Http.Response
-import Network.OAuth.Http.HttpClient
+import Yql.UI.CLI.Commands.Parser
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
-test0 = testCase "test endpoint returns the string defined" $
-        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined DevNullStorage [])
+test0 = testCase "testing parseCmd without arguments" $ 
+        do eq (Just $ ("foobar",[])) (parseCmd ":foobar")
 
-test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage []) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
-           ok (isRight resp)
-  where isRight (Right _) = True
-        isRight _         = False
+test1 = testCase "testing parseCmd with trailing and leading spaces" $
+        do eq (Just $ ("foobar",[])) (parseCmd "  :foobar")
+           eq (Just $ ("foobar",[])) (parseCmd ":foobar   ")
+           eq (Just $ ("foobar",[])) (parseCmd "  :foobar  ")
+           eq (Just $ ("foobar",["foo","bar"])) (parseCmd "  :foobar  foo   bar")
+
+test2 = testCase "testing parseCmd with arguments [simple]" $
+        do eq (Just $ ("foobar",["f","o","o","b","a","r"])) (parseCmd ":foobar f o o b a r")
+
+test3 = testCase "testing parseCmd with arguments [quoted]" $
+        do eq (Just $ ("foobar",["f o o b a r","r a b o o f"])) (parseCmd ":foobar 'f o o b a r' \"r a b o o f\"")
+
+test4 = testCase "testing parseCmd with arguments [quoted with \\' and \\\"]" $
+        do eq (Just $ ("foobar",["f'oobar","f\"oobar"])) (parseCmd ":foobar 'f\\'oobar' \"f\\\"oobar\"")
+           eq (Just $ ("foobar",["f\\'oobar"])) (parseCmd ":foobar 'f\\\\'oobar'")
 
 suite :: [Test]
-suite = [ testGroup "Engine.hs" [ test0
-                                , test2
-                                ]
+suite = [ testGroup "Commands/Parser.hs" [ test0
+                                        , test1
+                                        , test2
+                                        , test3
+                                        , test4
+                                        ]
         ]
-
-instance Show Application where
-  showsPrec _ (Application ckey csec OOB)     = showString $ "Application "++ ckey ++" "++ csec ++" OOB"
-  showsPrec _ (Application ckey csec (URL u)) = showString $ "Application "++ ckey ++" "++ csec ++" "++ u

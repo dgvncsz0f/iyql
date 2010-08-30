@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 --
@@ -24,12 +25,45 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Version 
-       ( version
-       , showVersion
-       ) where
+module Test.Yql.UI.CLI.Commands.WhoAmI where
 
-import Data.Version
+#define eq assertEqual (__FILE__ ++":"++ show __LINE__)
+#define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
-version :: Version
-version = Version [0,0,2] ["alpha"]
+import Network.OAuth.Consumer
+import Network.OAuth.Http.Request
+import Yql.Core.Session
+import Yql.UI.CLI.Command
+import Yql.UI.CLI.Commands.WhoAmI
+import Test.Framework
+import Test.Framework.Providers.HUnit
+import Test.HUnit (assertBool, assertEqual)
+
+newtype MySessionMgr = MySessionMgr (Maybe Token)
+
+instance SessionMgr MySessionMgr where
+  save _ _ = return ()
+  load (MySessionMgr mtoken) = return mtoken
+  unlink _ = return ()
+  mtime _ = return Nothing
+
+test0 = testCase "testing whoami without oauth token returns nobody" $ 
+        do output <- exec (whoami (MySessionMgr Nothing)) []
+           eq ("nobody") output
+
+test1 = testCase "testing whoami with proper oauth token returns the guid" $
+        do output <- exec (whoami (MySessionMgr (Just myToken))) []
+           eq ("foobar") output
+  where myToken = TwoLegg undefined (fromList [("xoauth_yahoo_guid","foobar")])
+
+test2 = testCase "testing whoami without xoauth_yahoo_guid param returns nobody" $
+        do output <- exec (whoami (MySessionMgr (Just myToken))) []
+           eq ("nobody") output
+  where myToken = TwoLegg undefined empty
+
+suite :: [Test]
+suite = [ testGroup "Commands/WhoAmI.hs" [ test0
+                                        , test1
+                                        , test2
+                                        ]
+        ]

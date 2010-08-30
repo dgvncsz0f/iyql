@@ -24,21 +24,15 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Functions
-       ( database
+module Yql.UI.CLI.Commands.Logout
+       ( logout
        ) where
 
-import Yql.Core.Types
-import Yql.Core.Functions.Request
-import Yql.Core.Functions.Tables
-import Yql.Core.Functions.Endpoint
-import qualified Data.Map as M
+import Yql.Core.Session
+import Yql.UI.CLI.Command
 
--- | Default linker
-database :: Database
-database = M.fromList [ ("request", yqlRequest)
-                      , ("json", const (yqlRequest [("format",TxtValue "json")]))
-                      , ("diagnostics", const (yqlRequest [("diagnostics",TxtValue "true")]))
-                      , ("tables", tablesTransform)
-                      , ("endpoint", yqlEndpoint)
-                      ]
+-- | Removes any saved oauth_token.
+logout :: SessionMgr s => s -> Command ()
+logout session = Command (doc,const exe)
+  where doc = "Purges any saved oauth token previously"
+        exe = unlink session

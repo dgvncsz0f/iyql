@@ -24,19 +24,17 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Functions.Request
-       ( yqlRequest
+module Yql.Core.LocalFunctions.Endpoint
+       ( yqlEndpoint
        ) where
 
 import Yql.Core.Types
-import Network.OAuth.Http.Request as R
+import Yql.Core.LocalFunction
+import Network.OAuth.Http.Request
 
 -- | Change the format parameter
-yqlRequest :: [(String,Value)] -> Exec
-yqlRequest vs = Before func
-  where myShow (TxtValue v) = v
-        myShow v            = show v
-
-        params = map (\(k,v) -> (k,myShow v)) vs
-
-        func r = r { qString = foldr R.insert (qString r) params }
+yqlEndpoint :: [(String,Value)] -> Exec
+yqlEndpoint vs = case vs 
+                 of [("host",TxtValue h)] -> Before (func h)
+                    _                     -> NOp
+  where func h r = r { host = h }

@@ -25,13 +25,14 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Test.Yql.Core.Functions.Tables where
+module Test.Yql.Core.LocalFunctions.Tables where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
 import Yql.Core.Types
-import Yql.Core.Functions.Tables
+import Yql.Core.LocalFunctions.Tables
+import Yql.Core.LocalFunction
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)

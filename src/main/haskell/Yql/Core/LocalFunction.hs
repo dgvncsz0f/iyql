@@ -24,16 +24,54 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.Functions.Endpoint
-       ( yqlEndpoint
+module Yql.Core.LocalFunction
+       ( Database
+       , Exec(..)
+       , pipeline
+       , ld'
+       , execBefore
+       , execAfter
+       , execTransform
        ) where
 
 import Yql.Core.Types
 import Network.OAuth.Http.Request
+import Network.OAuth.Http.Response
+import qualified Data.Map as M
+import Control.Monad
 
--- | Change the format parameter
-yqlEndpoint :: [(String,Value)] -> Exec
-yqlEndpoint vs = case vs 
-                 of [("host",TxtValue h)] -> Before (func h)
-                    _                     -> NOp
-  where func h r = r { host = h }
+type Database = M.Map String ([(String,Value)] -> Exec)
+
+-- | Local functions that may change a given yql query
+data Exec = Before (Request -> Request)
+          | After (Response -> Response)
+          | Transform (String -> String)
+          | Seq Exec Exec
+          | NOp
+
+-- | Transforms a list of functions into a pipeline using a given linker.
+pipeline :: Monad m => Database -> [Function] -> m Exec
+pipeline _ []     = return NOp
+pipeline db (f:fs) = case (M.lookup (name f) db)
+                     of Nothing -> fail $ "unknown function: " ++ name f
+                        Just ex -> liftM (ex (args f) `Seq`) (pipeline db fs)
+
+-- | Extracts the local functions from the statement and creates a pipeline.
+ld' :: (Monad m) => Database -> Expression -> m Exec
+ld' l stmt = let fs = filter local (functions stmt)
+             in pipeline l fs
+
+execTransform :: Exec -> String -> String
+execTransform (Transform f) s = f s
+execTransform (Seq fa fb) s   = execTransform fb (execTransform fa s)
+execTransform _ s             = s
+
+execBefore :: Exec -> Request -> Request
+execBefore (Before f) r  = f r
+execBefore (Seq fa fb) r = execBefore fb (execBefore fa r)
+execBefore _ r           = r
+
+execAfter :: Exec -> Response -> Response
+execAfter (After f) r   = f r
+execAfter (Seq fa fb) r = execAfter fb (execAfter fa r)
+execAfter _ r           = r

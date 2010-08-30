@@ -115,8 +115,9 @@ and its use:
 
 Most of the input is sent to the YQL. However, lines starting with : (colon) are considered to be commands and interpreted by iyql itself. These commands can modify/inspect the state of iyql program. Following a list of available commands:
 
-    * :whoami -- The guid of the authenticated user;
-    * :logout -- Purge the saved oauth token (if any);
-    * :license -- Prints the software license;
-    * :help -- The available commands;
-    * :quit -- Terminates the program;
+    * :whoami  -- The guid of the authenticated user;
+    * :logout  -- Purge the saved oauth token (if any);
+    * :login   -- Perform the oauth authorization process (if necessary);
+    * :setenv  -- Modifies the env list that is sent to yql;
+    * :help    -- The available commands;
+    * :quit    -- Terminates the program;
