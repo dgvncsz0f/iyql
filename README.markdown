@@ -118,6 +118,6 @@ Most of the input is sent to the YQL. However, lines starting with : (colon) are
     * :whoami  -- The guid of the authenticated user;
     * :logout  -- Purge the saved oauth token (if any);
     * :login   -- Perform the oauth authorization process (if necessary);
-    * :setenv  -- Modifies the env list that is sent to yql;
+    * :env     -- Modifies the env list that is sent to yql;
     * :help    -- The available commands;
     * :quit    -- Terminates the program;

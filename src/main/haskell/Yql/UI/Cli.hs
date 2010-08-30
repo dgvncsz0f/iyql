@@ -65,7 +65,7 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                             , ("login", bind y $ login y)
                             , ("whoami", bind y $ dump $ whoami s)
                             , ("help", bind y $ help M.empty)
-                            , ("setenv", fixSetenv (E.setenv y))
+                            , ("env", fixSetenv (E.setenv y))
                             ]
         
         fixSetenv (Command (d,f)) = Command (d,proxy)
