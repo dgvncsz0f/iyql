@@ -32,7 +32,6 @@ import Yql.Core.Session
 import Yql.UI.Cli
 import Yql.Cfg
 import Network.OAuth.Consumer
-import Debug.Trace
 
 main :: IO ()
 main = do session <- fmap mkSession basedir
@@ -45,6 +44,6 @@ main = do session <- fmap mkSession basedir
                               in case port
                                  of []    -> (host,80)
                                     [':'] -> (host,80)
-                                    (_:p) -> trace (show (host,p)) (host,read p)
+                                    (_:p) -> (host,read p)
         
         mkSession home = FileStorage (joinPath [home,"oauth_token"])
