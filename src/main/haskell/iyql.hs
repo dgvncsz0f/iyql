@@ -37,8 +37,10 @@ main :: IO ()
 main = do session <- fmap mkSession basedir
           config  <- usrCfg
           iyql session (backend session config)
-  where backend session config = YqlBackend (Application cfgCKey cfgCSec OOB) session (tryCfgs config "env" [])
+  where backend session config = YqlBackend (Application cfgCKey cfgCSec OOB) session (tryCfgs config "env" []) (yqlHost,yqlPort)
           where cfgCKey = tryCfg config "oauth_consumer_key" "<<no_ckey>>"
                 cfgCSec = tryCfg config "oauth_consumer_sec" "<<no_csec>>"
+                yqlHost = tryCfg config "endpoint_host" "query.yahooapis.com"
+                yqlPort = read (tryCfg config "endpoint_port" "80")
         
         mkSession home = FileStorage (joinPath [home,"oauth_token"])

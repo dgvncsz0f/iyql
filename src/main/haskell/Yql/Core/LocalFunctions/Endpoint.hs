@@ -34,7 +34,15 @@ import Network.OAuth.Http.Request
 
 -- | Change the format parameter
 yqlEndpoint :: [(String,Value)] -> Exec
-yqlEndpoint vs = case vs 
-                 of [("host",TxtValue h)] -> Before (func h)
-                    _                     -> NOp
-  where func h r = r { host = h }
+yqlEndpoint vs = Before func
+  where func r = r { host = newHost (host r)
+                   , port = newPort (port r)
+                   }
+
+        newHost d = case (lookup "host" vs)
+                    of (Just (TxtValue h)) -> h
+                       _                   -> d
+        newPort d = case (lookup "port" vs)
+                    of (Just (NumValue p)) -> read p
+                       _                   -> d
+

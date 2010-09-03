@@ -96,11 +96,11 @@ When this file is defined, you should be able to perform authenticated requests.
 
 Yql has support for functions. For instance, suppose you want to display the results in a different order, you may use _sort_ function to accomplish this. Iyql extends a bit this idea introducing local functions. Local functions are similar to YQL functions but are interpreted by the program itself. These functions might either a) change the request before that is sent, b) change the response before the output is generated. Next you will find a list of such functions:
 
-   * .request -- add parameters in the request (for instance diagnostics or env);
-   * .json -- alias to .request(format="json");
+   * .request     -- add parameters in the request (for instance diagnostics or env);
+   * .json        -- alias to .request(format="json");
    * .diagnostics -- alias to .request(diagnostics="true");
-   * .endpoint -- use a different yql endpoint, one other than `query.yahooapis.com'
-   * .tables -- turns the output into a tabular format;
+   * .endpoint    -- use a different yql endpoint, one other than `query.yahooapis.com' [.endpoint(host="query.yahooapis.com", port=80)]
+   * .tables      -- turns the output into a tabular format;
 
 and its use:
 

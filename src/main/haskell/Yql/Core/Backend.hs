@@ -57,9 +57,10 @@ import Network.OAuth.Http.HttpClient
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
 -- | The reference implementation backend available
-data Backend s = YqlBackend { application :: Application -- ^ The applicat that is used to perform 3-legged oauth requests
-                            , sessionMgr  :: s           -- ^ Used for saving/loading oauth tokens
-                            , defaultEnv  :: [String]    -- ^ Default environment to use when performing requests
+data Backend s = YqlBackend { application  :: Application  -- ^ The applicat that is used to perform 3-legged oauth requests
+                            , sessionMgr   :: s            -- ^ Used for saving/loading oauth tokens
+                            , defaultEnv   :: [String]     -- ^ Default environment to use when performing requests
+                            , myEndpoint   :: (String,Int) -- ^ The hostname and port of yql server
                             }
 
 -- | Tells the minimum security level required to perform this
@@ -131,7 +132,8 @@ mkRequest stmt env d = emptyRequest { R.ssl        = https d
 -- | Minimum complete definition: endpoint, app.
 class Yql y where
   -- | Returns the endpoint this backend is pointing to
-  endpoint :: y -> String
+  endpoint :: y -> (String,Int)
+  endpoint _ = ("query.yahooapis.com",80)
   
   -- | Add a new env that is included in the request
   setenv :: y -> String -> y
@@ -155,7 +157,7 @@ class Yql y where
                          mkOutput    <- fmap execTransform (ld' db stmt)
                          tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
                          response    <- lift (runOAuth $ do credentials y (security tableDesc)
-                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest' $ (myRequest tableDesc) { R.host = endpoint y } ))
+                                                            serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest' $ (myRequest tableDesc) { R.host = fst (endpoint y), R.port = snd (endpoint y) } ))
                          return $ mkOutput (toString (mkResponse response))
 
     where myRequest = mkRequest stmt (getenv y)
@@ -175,7 +177,7 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
                    _     -> False
 
 instance SessionMgr a => Yql (Backend a) where
-  endpoint _ = "query.yahooapis.com"
+  endpoint be = myEndpoint be
   
   setenv be e = be { defaultEnv = e : defaultEnv be }
   

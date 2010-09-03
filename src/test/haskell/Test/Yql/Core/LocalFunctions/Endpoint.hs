@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- Copyright (c) 2010, Diego Souza
 -- All rights reserved.
 --
@@ -24,29 +25,35 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+module Test.Yql.Core.LocalFunctions.Endpoint where
 
+#define eq assertEqual (__FILE__ ++":"++ show __LINE__)
+#define ok assertBool (__FILE__ ++":"++ show __LINE__)
+
+import Yql.Core.Types
+import Yql.Core.LocalFunctions.Endpoint
+import Yql.Core.LocalFunction
+import Network.OAuth.Http.Request
 import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Types as C
-import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.LocalFunctions.Tables as E
-import qualified Test.Yql.Core.LocalFunctions.Endpoint as F
-import qualified Test.Yql.Cfg as G
-import qualified Test.Yql.UI.CLI.Commands.Parser as H
-import qualified Test.Yql.UI.CLI.Commands.WhoAmI as I
-import qualified Test.Yql.UI.CLI.Commands.SetEnv as J
+import Test.Framework.Providers.HUnit
+import Test.HUnit (assertBool, assertEqual)
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            , D.suite
-                            , E.suite
-                            , F.suite
-                            , G.suite
-                            , H.suite
-                            , I.suite
-                            , J.suite
-                            ]
+test0 = testCase "endpoint is able to change hostname" $
+        do eq (request { host="foobaz.com" }) (execBefore (yqlEndpoint [("host",TxtValue "foobaz.com")]) request)
+  where Just request = parseURL "http://foobar.com/"
+
+
+test1 = testCase "endpoint is able to change port" $
+        do eq (request { port=8080 }) (execBefore (yqlEndpoint [("port",NumValue "8080")]) request)
+  where Just request = parseURL "http://foobar.com/"
+
+test2 = testCase "endpoint leaves request untouched if parameters are absent" $
+        do eq request (execBefore (yqlEndpoint []) request)
+  where Just request = parseURL "http://foobar.com/"
+
+suite :: [Test]
+suite = [ testGroup "Endpoint.hs" [ test0
+                                  , test1
+                                  , test2
+                                  ]
+        ]
