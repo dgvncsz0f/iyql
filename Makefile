@@ -19,12 +19,16 @@ default: compile
 .PHONY: compile
 compile: $(MAIN_IYQL)
 
+.PHONY: compile-hpc
+compile-hpc: HCFLAGS += -fhpc
+compile-hpc: $(MAIN_IYQL)
+
 .PHONY: install
 install: compile
 	$(INSTALL) -m 0755 $(MAIN_IYQL) $(PREFIX)/bin
 
 .PHONY: test
-test: $(TEST_IYQL)
+test: compile-hpc $(TEST_IYQL)
 	$(TEST_IYQL)
 
 .PHONY: clean

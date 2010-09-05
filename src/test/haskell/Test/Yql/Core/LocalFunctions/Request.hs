@@ -30,7 +30,7 @@ module Test.Yql.Core.LocalFunctions.Request where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
-import Yql.Core.Types
+import Yql.Core.Types hiding (insert)
 import Yql.Core.LocalFunctions.Request
 import Yql.Core.LocalFunction
 import Network.OAuth.Http.Request
@@ -51,9 +51,24 @@ test2 = testCase "endpoint leaves request untouched if parameters are absent" $
         do eq request (execBefore [] endpointFunction request)
   where Just request = parseURL "http://foobar.com/"
 
+test3 = testCase "json is able to modify the request" $
+        do eq (request { qString = insert ("format","json") (qString request) }) (execBefore [] jsonFunction request)
+  where Just request = parseURL "http://foobar.com/"
+
+test4 = testCase "diagnostics is able to modify the request" $
+        do eq (request { qString = insert ("diagnostics","true") (qString request)}) (execBefore [] diagnosticsFunction request)
+  where Just request = parseURL "http://foobar.com/"
+
+test5 = testCase "request modifies the request according parameters" $
+        do eq (request { qString = foldr insert (qString request) [("foo","bar"),("bar","foo")]}) (execBefore [("foo",TxtValue "bar"),("bar",TxtValue "foo")] function request)
+  where Just request = parseURL "http://foobar.com/"
+
 suite :: [Test]
 suite = [ testGroup "Request.hs" [ test0
                                  , test1
                                  , test2
+                                 , test3
+                                 , test4
+                                 , test5
                                  ]
         ]
