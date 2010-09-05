@@ -79,7 +79,7 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
 
 outputVersion :: String -> InputT IO ()
 outputVersion link = outputStrLn $ unlines [ link ++" "++ showVersion version
-                                           , "Copyright (C) 2010 dsouza <dsouza+iyql@bitforest.org>"
+                                           , "Copyright (C) 2010 dsouza <dsouza+iyql at bitforest.org>"
                                            , "License GPLv3+: <http://github.com/dsouza/iyql/raw/master/LICENSE>"
                                            , "This is free software, and you are welcome to change and redistribute it."
                                            , "This program comes with ABSOLUTELY NO WARRANTY."
