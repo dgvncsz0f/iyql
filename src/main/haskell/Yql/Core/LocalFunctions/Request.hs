@@ -39,9 +39,9 @@ function :: Exec
 function = Before doc func
   where doc link = unlines [ "Modify the request query string"
                            , "Example:"
-                           , "  " ++ link ++ "(format=\"json\")"
-                           , "  " ++ link ++ "(diagnostics=\"true\")"
-                           , "  " ++ link ++ "(_maxage=3600)"
+                           , "  SELECT * FROM foobar | " ++ link ++ "(format=\"json\")"
+                           , "  SELECT * FROM foobar | " ++ link ++ "(diagnostics=\"true\")"
+                           , "  SELECT * FROM foobar | " ++ link ++ "(_maxage=3600)"
                            ]
         
         func vs r = r { qString = foldr R.insert (qString r) params }

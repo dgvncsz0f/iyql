@@ -36,7 +36,7 @@ import Yql.UI.CLI.Command
 -- | Invokes the man of a given local function
 manlf :: F.Database -> Command String
 manlf db = Command (doc, const exe)
-  where doc link = unlines [ "Prints the help page of a given local function"
+  where doc link = unlines [ "Prints the help message of the given local function. Without arguments prints all available functions."
                            , "Examples:"
                            , "    :"++ link ++" .request"
                            , "    :"++ link ++" .tables"
