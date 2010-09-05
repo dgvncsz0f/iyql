@@ -48,16 +48,16 @@ instance SessionMgr MySessionMgr where
   mtime _ = return Nothing
 
 test0 = testCase "testing whoami without oauth token returns nobody" $ 
-        do output <- exec (whoami (MySessionMgr Nothing)) "" []
+        do output <- bin (whoami (MySessionMgr Nothing)) "" []
            eq ("nobody") output
 
 test1 = testCase "testing whoami with proper oauth token returns the guid" $
-        do output <- exec (whoami (MySessionMgr (Just myToken))) "" []
+        do output <- bin (whoami (MySessionMgr (Just myToken))) "" []
            eq ("foobar") output
   where myToken = TwoLegg undefined (fromList [("xoauth_yahoo_guid","foobar")])
 
 test2 = testCase "testing whoami without xoauth_yahoo_guid param returns nobody" $
-        do output <- exec (whoami (MySessionMgr (Just myToken))) "" []
+        do output <- bin (whoami (MySessionMgr (Just myToken))) "" []
            eq ("nobody") output
   where myToken = TwoLegg undefined empty
 

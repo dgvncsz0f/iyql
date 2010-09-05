@@ -25,13 +25,13 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Test.Yql.Core.LocalFunctions.Endpoint where
+module Test.Yql.Core.LocalFunctions.Request where
 
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
 import Yql.Core.Types
-import Yql.Core.LocalFunctions.Endpoint
+import Yql.Core.LocalFunctions.Request
 import Yql.Core.LocalFunction
 import Network.OAuth.Http.Request
 import Test.Framework
@@ -39,21 +39,21 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "endpoint is able to change hostname" $
-        do eq (request { host="foobaz.com" }) (execBefore (yqlEndpoint [("host",TxtValue "foobaz.com")]) request)
+        do eq (request { host="foobaz.com" }) (execBefore [("host",TxtValue "foobaz.com")] endpointFunction request)
   where Just request = parseURL "http://foobar.com/"
 
 
 test1 = testCase "endpoint is able to change port" $
-        do eq (request { port=8080 }) (execBefore (yqlEndpoint [("port",NumValue "8080")]) request)
+        do eq (request { port=8080 }) (execBefore [("port",NumValue "8080")] endpointFunction request)
   where Just request = parseURL "http://foobar.com/"
 
 test2 = testCase "endpoint leaves request untouched if parameters are absent" $
-        do eq request (execBefore (yqlEndpoint []) request)
+        do eq request (execBefore [] endpointFunction request)
   where Just request = parseURL "http://foobar.com/"
 
 suite :: [Test]
-suite = [ testGroup "Endpoint.hs" [ test0
-                                  , test1
-                                  , test2
-                                  ]
+suite = [ testGroup "Request.hs" [ test0
+                                 , test1
+                                 , test2
+                                 ]
         ]

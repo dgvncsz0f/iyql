@@ -28,7 +28,7 @@ module Yql.UI.CLI.Command
        ( Command(..)
        , Database
        , man
-       , exec
+       , bin
        , help
        , bind
        , dump
@@ -56,8 +56,8 @@ man :: Command a -> String -> String
 man = fst . runCommand
 
 -- | Extracts the binary
-exec :: Command a -> String -> [String] -> IO a
-exec = snd . runCommand
+bin :: Command a -> String -> [String] -> IO a
+bin = snd . runCommand
 
 -- | The help command, whith displays all available commands in the database
 help :: Database a -> Command String

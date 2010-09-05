@@ -38,7 +38,7 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase ".tables() for `simple' results" $
-        do eq tabular (execTransform (tablesTransform []) xml)
+        do eq tabular (execTransform [] function xml)
   where tabular = init . unlines $ [ "|*bar*|*foo*|"
                                    , "|bar  |foo  |"
                                    , "|bar  |foo  |"
@@ -57,7 +57,7 @@ test0 = testCase ".tables() for `simple' results" $
                       ]
 
 test1 = testCase ".tables() for `complex' results" $
-        do eq tabular (execTransform (tablesTransform []) xml)
+        do eq tabular (execTransform [] function xml)
   where tabular = init . unlines $ [ "|*bar*                          |*foo*                |"
                                    , "|bar                            ||*field_a*|*field_b*|"
                                    , "                                 |field_a  |field_b  ||"
@@ -79,7 +79,7 @@ test1 = testCase ".tables() for `complex' results" $
                       ]
 
 test2 = testCase ".tables() add missing rows" $
-        do eq tabular (execTransform (tablesTransform []) xml)
+        do eq tabular (execTransform [] function xml)
   where tabular = init . unlines $ [ "|*bar*|*foo*|"
                                    , "|0    |0    |"
                                    , "|1    |     |"
@@ -102,7 +102,7 @@ test2 = testCase ".tables() add missing rows" $
                       ]
 
 test3 = testCase ".tables() fill columns with spaces" $
-        do eq tabular (execTransform (tablesTransform []) xml)
+        do eq tabular (execTransform [] function xml)
   where tabular = init . unlines $ [ "|*bar*      |*foo*     |"
                                    , "|0          |1         |"
                                    , "|fooooooobar|foooooobar|"

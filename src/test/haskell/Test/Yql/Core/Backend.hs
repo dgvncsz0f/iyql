@@ -42,10 +42,10 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "test endpoint returns the string defined" $
-        eq "query.yahooapis.com" (endpoint $ YqlBackend undefined DevNullStorage [])
+        eq ("foobar",80) (myEndpoint $ YqlBackend undefined DevNullStorage [] ("foobar",80))
 
 test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage []) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
+        do resp <- unCurlM $ unOutputT $ execute (YqlBackend undefined DevNullStorage [] ("query.yahooapis.com",80)) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False

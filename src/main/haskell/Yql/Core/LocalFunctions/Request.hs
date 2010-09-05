@@ -25,19 +25,60 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Yql.Core.LocalFunctions.Request
-       ( yqlRequest
+       ( function
+       , jsonFunction
+       , diagnosticsFunction
+       , endpointFunction
        ) where
 
 import Yql.Core.Types
 import Yql.Core.LocalFunction
 import Network.OAuth.Http.Request as R
 
--- | Change the format parameter
-yqlRequest :: [(String,Value)] -> Exec
-yqlRequest vs = Before func
-  where myShow (TxtValue v) = v
-        myShow v            = show v
+function :: Exec
+function = Before doc func
+  where doc link = unlines [ "Modify the request query string"
+                           , "Example:"
+                           , "  " ++ link ++ "(format=\"json\")"
+                           , "  " ++ link ++ "(diagnostics=\"true\")"
+                           , "  " ++ link ++ "(_maxage=3600)"
+                           ]
+        
+        func vs r = r { qString = foldr R.insert (qString r) params }
+          where params = map (\(k,v) -> (k,myShow v)) vs
+                
+                myShow (TxtValue v) = v
+                myShow v            = show v
 
-        params = map (\(k,v) -> (k,myShow v)) vs
+jsonFunction :: Exec
+jsonFunction = Before doc func
+  where doc _ = unlines [ "Changes the output format to json."
+                        ]
+        
+        func _ r = r { qString = R.insert ("format","json") (qString r) }
 
-        func r = r { qString = foldr R.insert (qString r) params }
+diagnosticsFunction :: Exec
+diagnosticsFunction = Before doc func
+  where doc _ = unlines [ "Sends diagnostics=true parameter to yql"
+                        ]
+        
+        func _ r = r { qString = R.insert ("diagnostics","true") (qString r) }
+
+endpointFunction :: Exec
+endpointFunction = Before doc func
+  where doc link = unlines [ "Allow you to change the yql endpoint"
+                           , "Examples:"
+                           , " SELECT * FROM foobar | " ++ link ++ "(host=\"query.yahooapis.com\", port=80);"
+                           ]
+        
+        func vs r = r { host = newHost (host r)
+                      , port = newPort (port r)
+                      }
+                    
+          where newHost d = case (lookup "host" vs)
+                            of (Just (TxtValue h)) -> h
+                               _                   -> d
+
+                newPort d = case (lookup "port" vs)
+                            of (Just (NumValue p)) -> read p
+                               _                   -> d

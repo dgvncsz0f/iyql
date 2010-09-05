@@ -24,25 +24,25 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Yql.Core.LocalFunctions.Endpoint
-       ( yqlEndpoint
+module Yql.UI.CLI.Commands.ManLf
+       ( manlf
        ) where
 
-import Yql.Core.Types
-import Yql.Core.LocalFunction
-import Network.OAuth.Http.Request
+import qualified Yql.Core.LocalFunction as F
+import qualified Data.Map as M
+import Data.List (sort)
+import Yql.UI.CLI.Command
 
--- | Change the format parameter
-yqlEndpoint :: [(String,Value)] -> Exec
-yqlEndpoint vs = Before func
-  where func r = r { host = newHost (host r)
-                   , port = newPort (port r)
-                   }
-
-        newHost d = case (lookup "host" vs)
-                    of (Just (TxtValue h)) -> h
-                       _                   -> d
-        newPort d = case (lookup "port" vs)
-                    of (Just (NumValue p)) -> read p
-                       _                   -> d
-
+-- | Invokes the man of a given local function
+manlf :: F.Database -> Command String
+manlf db = Command (doc, const exe)
+  where doc link = unlines [ "Prints the help page of a given local function"
+                           , "Examples:"
+                           , "    :"++ link ++" .request"
+                           , "    :"++ link ++" .tables"
+                           ]
+        exe [link] = case (M.lookup (drop 1 link) db)
+                     of Nothing -> return ("man: no manual entry for "++ link)
+                        Just f  -> return (F.man f link)
+        exe _   = let links = M.keys db
+                  in return (unlines (map ('.':) (sort links)))

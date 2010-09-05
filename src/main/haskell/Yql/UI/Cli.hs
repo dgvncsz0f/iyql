@@ -35,9 +35,8 @@ import Yql.Version
 import Yql.Cfg (basedir)
 import Yql.Core.Backend
 import Yql.Core.LocalFunction
-import Yql.Core.LocalFunctions.Request
-import Yql.Core.LocalFunctions.Endpoint
-import Yql.Core.LocalFunctions.Tables
+import qualified Yql.Core.LocalFunctions.Request as R
+import qualified Yql.Core.LocalFunctions.Tables as T
 import Yql.Core.Session
 import Yql.Core.Parser
 import Yql.Core.Types
@@ -47,17 +46,19 @@ import Yql.UI.CLI.Commands.Parser
 import Yql.UI.CLI.Commands.WhoAmI
 import Yql.UI.CLI.Commands.Logout
 import Yql.UI.CLI.Commands.Login
+import Yql.UI.CLI.Commands.ManLf
 import qualified Yql.UI.CLI.Commands.SetEnv as E
 import qualified Data.Map as M
 import qualified Yql.UI.CLI.Options as O
 
 funcDB :: Yql.Core.LocalFunction.Database
-funcDB = M.fromList [ ("request", yqlRequest)
-                    , ("json", const (yqlRequest [("format",TxtValue "json")]))
-                    , ("diagnostics", const (yqlRequest [("diagnostics",TxtValue "true")]))
-                    , ("tables", tablesTransform)
-                    , ("endpoint", yqlEndpoint)
+funcDB = M.fromList [ ("request", R.function)
+                    , ("json", R.jsonFunction)
+                    , ("diagnostics", R.diagnosticsFunction)
+                    , ("tables", T.function)
+                    , ("endpoint", R.endpointFunction)
                     ]
+        
 
 cmdDB :: (SessionMgr s, Yql y) => s -> y -> Yql.UI.CLI.Command.Database y
 cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
@@ -66,6 +67,7 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                             , ("whoami", bind y $ dump $ whoami s)
                             , ("help", bind y $ help M.empty)
                             , ("env", fixSetenv (E.setenv y))
+                            , ("man", bind y $ dump $ manlf funcDB)
                             ]
         
         fixSetenv (Command (d,f)) = Command (d,proxy)
@@ -95,7 +97,7 @@ execCmd s y input = case (parseCmd input)
                        Just (link,argv)     -> case (M.lookup link (cmdDB s y))
                                                of Nothing  -> do outputStrLn (input ++ " : unknown command") 
                                                                  return (Just y)
-                                                  Just cmd -> fmap Just (liftIO $ exec cmd link argv)
+                                                  Just cmd -> fmap Just (liftIO $ bin cmd link argv)
 
 putenv :: Yql y => y -> [String] -> y
 putenv = foldr (flip setenv)

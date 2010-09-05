@@ -32,7 +32,7 @@ import qualified Test.Yql.Core.Parser as B
 import qualified Test.Yql.Core.Types as C
 import qualified Test.Yql.Core.Backend as D
 import qualified Test.Yql.Core.LocalFunctions.Tables as E
-import qualified Test.Yql.Core.LocalFunctions.Endpoint as F
+import qualified Test.Yql.Core.LocalFunctions.Request as F
 import qualified Test.Yql.Cfg as G
 import qualified Test.Yql.UI.CLI.Commands.Parser as H
 import qualified Test.Yql.UI.CLI.Commands.WhoAmI as I

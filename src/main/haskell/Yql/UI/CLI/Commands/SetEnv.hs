@@ -31,7 +31,7 @@ module Yql.UI.CLI.Commands.SetEnv
 import qualified Yql.Core.Backend as Y
 import Yql.UI.CLI.Command
 
--- | Removes any saved oauth_token.
+-- | Modifies the env parameters that are sent to yql
 setenv :: Y.Yql y => y -> Command (Either String y)
 setenv be0 = Command (doc, const exe)
   where doc n  = unlines [ "Modifies the env parameters that are sent to yql"

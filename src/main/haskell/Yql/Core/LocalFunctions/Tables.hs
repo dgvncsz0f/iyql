@@ -25,10 +25,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Yql.Core.LocalFunctions.Tables
-       ( tablesTransform
+       ( function
        ) where
 
-import Yql.Core.Types
 import Yql.Core.LocalFunction
 import Yql.Xml
 import Data.List
@@ -107,8 +106,10 @@ render (Space k d) = (replicate k ' ') ++ render d
 render (Line k d)  = "\n" ++ (replicate k ' ') ++ render d
 render (Text s d)  = s ++ render d
 
-tablesTransform :: [(String,Value)] -> Exec
-tablesTransform _ = Transform (render . xml2doc)
+function :: Exec
+function = Transform (const doc) (const $ render . xml2doc)
+  where doc = unlines [ "Reads the xml output and transform it into tabular form."
+                      ]
 
 norm :: Table -> Table
 norm (Lines cols) = Lines (map fixColumn cols)

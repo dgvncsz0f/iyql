@@ -36,8 +36,8 @@ module Yql.Core.Backend
 
 import Yql.Cfg
 import Yql.Core.Types
+import qualified Yql.Core.LocalFunctions.Request as F
 import Yql.Core.LocalFunction
-import Yql.Core.LocalFunctions.Request
 import Yql.Core.Session
 import Yql.Xml
 import Data.Char
@@ -78,7 +78,7 @@ descTablesIn y envs stmt = case stmt
                             Nothing  -> fail "error parsing xml"
           
           execDesc t = execute y database (mkDesc stmt t) >>= parseXml
-            where database = M.fromList [("request",yqlRequest)]
+            where database = M.fromList [("request", F.function)]
           
           mkDesc (USE u a stmt') t = USE u a (mkDesc stmt' t)
           mkDesc _ t               = DESC t funcs
@@ -152,9 +152,9 @@ class Yql y where
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
   execute :: (MonadIO m,HttpClient m) => y -> Database -> Expression -> OutputT m String
-  execute y db stmt = do mkRequest'  <- fmap execBefore (ld' db stmt)
-                         mkResponse  <- fmap execAfter (ld' db stmt)
-                         mkOutput    <- fmap execTransform (ld' db stmt)
+  execute y db stmt = do mkRequest'  <- fmap execBefore_ (ld' db stmt)
+                         mkResponse  <- fmap execAfter_ (ld' db stmt)
+                         mkOutput    <- fmap execTransform_ (ld' db stmt)
                          tableDesc   <- descTablesIn y (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
                          response    <- lift (runOAuth $ do credentials y (security tableDesc)
                                                             serviceRequest HMACSHA1 (Just "yahooapis.com") (mkRequest' $ (myRequest tableDesc) { R.host = fst (endpoint y), R.port = snd (endpoint y) } ))
