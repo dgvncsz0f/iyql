@@ -4,4 +4,6 @@
 src/test/haskell/all_tests
 src/main/haskell/iyql
 dist
+.hpc
+test_iyql.tix
 .#*

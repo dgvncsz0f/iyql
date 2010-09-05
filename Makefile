@@ -4,8 +4,9 @@ PREFIX  = /usr/local
 
 FIND    = find
 INSTALL = install
-
 HC      = ghc
+HPC     = hpc
+
 HCFLAGS =
 
 MAIN_IYQL = dist/bin/iyql
@@ -28,8 +29,13 @@ install: compile
 	$(INSTALL) -m 0755 $(MAIN_IYQL) $(PREFIX)/bin
 
 .PHONY: test
-test: compile-hpc $(TEST_IYQL)
+test: $(TEST_IYQL)
 	$(TEST_IYQL)
+
+.PHONY: test-hpc
+test-hpc: compile-hpc $(TEST_IYQL)
+	-$(TEST_IYQL) >/dev/null
+	$(HPC) markup --destdir=dist/hpc test_iyql.tix
 
 .PHONY: clean
 clean:
@@ -38,6 +44,8 @@ clean:
 	$(FIND) src/test/haskell -name \*.o -exec rm -f {} \;
 	$(FIND) src/test/haskell -name \*.hi -exec rm -f {} \;
 	rm -f -r dist
+	rm -f -r test_iyql.tix
+	rm -f -r .hpc
 
 dist:
 	mkdir $(@)
