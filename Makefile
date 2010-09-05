@@ -34,8 +34,9 @@ test: $(TEST_IYQL)
 
 .PHONY: test-hpc
 test-hpc: compile-hpc $(TEST_IYQL)
-	-$(TEST_IYQL) >/dev/null
+	-@$(TEST_IYQL) >/dev/null
 	$(HPC) markup --destdir=dist/hpc test_iyql.tix
+	$(HPC) report test_iyql.tix
 
 .PHONY: clean
 clean:
@@ -48,10 +49,10 @@ clean:
 	rm -f -r .hpc
 
 dist:
-	mkdir $(@)
+	@[ -d $(@) ] || mkdir $(@)
 
 dist/bin: dist
-	mkdir $(@)
+	@[ -d $(@) ] || mkdir $(@)
 
 $(MAIN_IYQL): src/main/haskell/iyql.hs $(MAIN_SRC) dist/bin
 	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)
