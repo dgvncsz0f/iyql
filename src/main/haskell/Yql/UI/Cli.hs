@@ -77,8 +77,13 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                                                       return y
                                        Right y' -> return y'
 
-outputVersion :: InputT IO ()
-outputVersion = outputStrLn $ "iyql version " ++ showVersion version
+outputVersion :: String -> InputT IO ()
+outputVersion link = outputStrLn $ unlines [ link ++" "++ showVersion version
+                                           , "Copyright (C) 2010 dsouza <dsouza+iyql@bitforest.org>"
+                                           , "License GPLv3+: <http://github.com/dsouza/iyql/raw/master/LICENSE>"
+                                           , "This is free software, and you are welcome to change and redistribute it."
+                                           , "This program comes with ABSOLUTELY NO WARRANTY."
+                                           ]
 
 outputHelp :: InputT IO ()
 outputHelp = do outputStrLn "Enter :help for instructions"
@@ -108,13 +113,12 @@ run s y = do argv <- liftIO getArgs
                of Left errors   -> outputStrLn errors
                   Right actions -> runActions argv actions
   where runActions argv opts
-          | O.wantVersion opts  = outputVersion
+          | O.wantVersion opts  = liftIO getProgName >>= outputVersion
           | O.wantHelp opts     = outputStrLn $ O.usage argv
           | O.wantExecStmt opts = let O.ExecStmt stmt = head . filter O.execStmt $ opts
                                   in execYql y stmt
           | otherwise           = let newY = putenv y (map (\(O.Env e) -> e) (filter O.env opts))
-                                  in do outputVersion
-                                        outputHelp
+                                  in do outputHelp
                                         loop newY (Handler (execCmd s) execYql)
                                         return ()
 
