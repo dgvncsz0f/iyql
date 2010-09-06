@@ -45,7 +45,7 @@ clean:
 	$(FIND) src/test/haskell -name \*.o -exec rm -f {} \;
 	$(FIND) src/test/haskell -name \*.hi -exec rm -f {} \;
 	rm -f -r dist
-	rm -f -r test_iyql.tix
+	rm -f -r *.tix
 	rm -f -r .hpc
 
 dist:
