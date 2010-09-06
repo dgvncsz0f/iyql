@@ -24,31 +24,62 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+-- | A [inefficient] implementation of Trie
+module Yql.Core.Trie 
+       ( -- * Types
+         Trie()
+         -- * Query
+       , null 
+       , size
+       , subtrie
+         -- * Conversion
+       , fromList
+       , toList
+         -- * Traversal
+       , fold
+         -- * Construction
+       , empty
+       , singleton
+         -- * Combine
+       , union
+       ) where
 
-import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Types as C
-import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.LocalFunctions.Tables as E
-import qualified Test.Yql.Core.LocalFunctions.Request as F
-import qualified Test.Yql.Core.Trie as G
-import qualified Test.Yql.Cfg as H
-import qualified Test.Yql.UI.CLI.Commands.Parser as I
-import qualified Test.Yql.UI.CLI.Commands.WhoAmI as J
-import qualified Test.Yql.UI.CLI.Commands.SetEnv as K
+import Prelude hiding (null)
+import Data.Maybe (isJust)
+import qualified Data.Map as M
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            , D.suite
-                            , E.suite
-                            , F.suite
-                            , G.suite
-                            , H.suite
-                            , I.suite
-                            , J.suite
-                            , K.suite
-                            ]
+data Trie k = Trie (M.Map k (Trie k))
+            deriving (Show,Eq,Ord)
+
+fold :: (k -> a, [[a]] -> b) -> Trie k -> b
+fold (f,g) (Trie m) = g (M.foldWithKey myFold [] m)
+  where myFold k st acc 
+          | null st   = [f k] : acc 
+          | otherwise = map (f k:) (fold (f,id) st) ++ acc
+        
+null :: Trie k -> Bool
+null (Trie m) = M.null m
+
+empty :: Trie k
+empty = Trie M.empty
+
+singleton :: k -> Trie k
+singleton k = Trie (M.singleton k empty)
+
+toList :: Trie k -> [[k]]
+toList = fold (id,id)
+
+fromList :: Ord k => [[k]] -> Trie k
+fromList = foldr union empty . map fromList'
+  where fromList' (k:ks) = Trie (M.singleton k (fromList' ks))
+        fromList' []     = empty
+
+size :: Trie k -> Int
+size = fold (const 1,foldr ((+) . sum) 0)
+
+union :: Ord k => Trie k -> Trie k -> Trie k
+union (Trie m0) (Trie m1) = Trie (M.unionWith union m0 m1)
+
+subtrie :: Ord k => [k] -> Trie k -> Trie k
+subtrie [] t            = t
+subtrie (k:ks) (Trie m) = subtrie ks (M.findWithDefault empty k m)

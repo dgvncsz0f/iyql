@@ -33,6 +33,7 @@ import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
 import Yql.Version
 import Yql.Cfg (basedir)
+import Yql.Core.Trie
 import Yql.Core.Backend
 import Yql.Core.LocalFunction
 import qualified Yql.Core.LocalFunctions.Request as R
