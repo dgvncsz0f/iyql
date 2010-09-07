@@ -51,11 +51,8 @@ import qualified Data.Map as M
 data Trie k = Trie (M.Map k (Trie k))
             deriving (Show,Eq,Ord)
 
-fold :: (k -> a, [[a]] -> b) -> Trie k -> b
-fold (f,g) (Trie m) = g (M.foldWithKey myFold [] m)
-  where myFold k st acc 
-          | null st   = [f k] : acc 
-          | otherwise = map (f k:) (fold (f,id) st) ++ acc
+fold :: (k -> Trie k -> b -> b) -> b -> Trie k -> b
+fold f b (Trie m) = M.foldrWithKey f b m
         
 null :: Trie k -> Bool
 null (Trie m) = M.null m
@@ -67,7 +64,10 @@ singleton :: k -> Trie k
 singleton k = Trie (M.singleton k empty)
 
 toList :: Trie k -> [[k]]
-toList = fold (id,id)
+toList = fold f []
+  where f k t acc 
+          | null t    = [k] : acc
+          | otherwise = acc ++ map (k:) (toList t)
 
 fromList :: Ord k => [[k]] -> Trie k
 fromList = foldr union empty . map fromList'
@@ -75,7 +75,8 @@ fromList = foldr union empty . map fromList'
         fromList' []     = empty
 
 size :: Trie k -> Int
-size = fold (const 1,foldr ((+) . sum) 0)
+size = fold f 0
+  where f _ t acc = acc + 1 + size t
 
 union :: Ord k => Trie k -> Trie k -> Trie k
 union (Trie m0) (Trie m1) = Trie (M.unionWith union m0 m1)
