@@ -32,6 +32,7 @@ module Test.Yql.Core.Trie where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 
 import Yql.Core.Trie as T
+import Data.List (sort)
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
@@ -66,11 +67,11 @@ test2 = testCase "test fromList with null list = empty" $
         do eq (empty :: Trie ()) (fromList [])
 
 test3 = testCase "test fromList with single value = singleton" $
-        do eq (singleton ()) (fromList [[()]])
+        do eq (singleton [()]) (fromList [[()]])
 
-test4 = testCase "toList . fromList removes prefixes" $
-        do eq ([last list]) (toList . fromList $ list)
-  where list = [[0],[0,1],[0,1,2],[0,1,2,3]]
+test4 = testCase "toList . fromList = id" $
+        do eq (list) (toList . fromList $ list)
+  where list = sort [[0],[0,1],[0,1,2],[0,1,2,3]]
 
 test5 = testCase "fromList . toList = id" $
         do eq (trie) (fromList . toList $ trie)
@@ -80,7 +81,7 @@ test6 = testCase "size empty = 0" $
         do eq (0) (size (empty :: Trie ()))
 
 test7 = testCase "size singleton = 1" $
-        do eq (1) (size $ singleton ())
+        do eq (1) (size $ singleton [()])
 
 test8 = testCase "size fromList" $ 
         do eq (5) (size $ fromList [[0],[0,1],[0,1,2],[0,1,2,3],[4]])

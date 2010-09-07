@@ -54,11 +54,19 @@ test4 = testCase "testing parseCmd with arguments [quoted with \\' and \\\"]" $
         do eq (Just $ ("foobar",["f'oobar","f\"oobar"])) (parseCmd ":foobar 'f\\'oobar' \"f\\\"oobar\"")
            eq (Just $ ("foobar",["f\\'oobar"])) (parseCmd ":foobar 'f\\\\'oobar'")
 
+test5 = testCase "testing parseCmd with arguments with trailing spaces" $
+        do eq (Just $ ("foobar",["foobar"])) (parseCmd ":foobar foobar   ")
+
+test6 = testCase "testing parseCmd with multiple spaces separating arguments" $
+        do eq (Just $ ("foobar",["foobar","foobaz"])) (parseCmd ":foobar           foobar     foobaz")
+
 suite :: [Test]
 suite = [ testGroup "Commands/Parser.hs" [ test0
                                         , test1
                                         , test2
                                         , test3
                                         , test4
+                                        , test5
+                                        , test6
                                         ]
         ]

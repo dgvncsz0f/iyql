@@ -33,9 +33,11 @@ import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
 import Yql.Version
 import Yql.Cfg (basedir)
+import Yql.Xml
 import Yql.Core.Trie
 import Yql.Core.Backend
 import Yql.Core.LocalFunction
+import Yql.Core.Lexer (keywords)
 import qualified Yql.Core.LocalFunctions.Request as R
 import qualified Yql.Core.LocalFunctions.Tables as T
 import Yql.Core.Session
@@ -51,6 +53,8 @@ import Yql.UI.CLI.Commands.ManLf
 import qualified Yql.UI.CLI.Commands.SetEnv as E
 import qualified Data.Map as M
 import qualified Yql.UI.CLI.Options as O
+
+import Debug.Trace
 
 funcDB :: Yql.Core.LocalFunction.Database
 funcDB = M.fromList [ ("request", R.function)
@@ -78,6 +82,13 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                                                       return y
                                        Right y' -> return y'
 
+completeCli :: Trie Char -> String -> [Completion]
+completeCli t w | member w t = map toCompletion (w : list)
+                | otherwise  = map toCompletion list
+  where toCompletion s = Completion s s True
+        
+        list = map (w++) (toList (subtrie w t))
+
 outputVersion :: String -> InputT IO ()
 outputVersion link = outputStrLn $ unlines [ link ++" "++ showVersion version
                                            , "Copyright (C) 2010 dsouza <dsouza+iyql at bitforest.org>"
@@ -90,10 +101,13 @@ outputHelp :: InputT IO ()
 outputHelp = do outputStrLn "Enter :help for instructions"
                 outputStrLn "Enter YQL statements terminated with a \";\""
 
-execYql :: Yql y => y -> String -> InputT IO ()
+execYql_ :: Yql y => y -> String -> InputT IO ()
+execYql_ y input = liftIO (execYql y input) >>= outputStrLn
+
+execYql :: Yql y => y -> String -> IO String
 execYql y input = case (parseYql input builder)
-                  of Left err   -> outputStrLn (show err)
-                     Right stmt -> fmap (either id id) (liftIO (unCurlM (unOutputT (execute y funcDB stmt)))) >>= outputStrLn
+                  of Left err   -> return (show err)
+                     Right stmt -> fmap (either id id) (unCurlM (unOutputT (execute y funcDB stmt)))
 
 execCmd :: (SessionMgr s,Yql y) => s -> y -> String -> InputT IO (Maybe y)
 execCmd s y input = case (parseCmd input)
@@ -108,6 +122,13 @@ execCmd s y input = case (parseCmd input)
 putenv :: Yql y => y -> [String] -> y
 putenv = foldr (flip setenv)
 
+putenvM :: Yql y => y -> IO y
+putenvM y = do argv <- getArgs
+               case (O.getoptions argv)
+                 of Right opts -> return (putenv y (map o2e (filter O.env opts)))
+                    _          -> return y
+  where o2e (O.Env e) = e
+
 run :: (SessionMgr s,Yql y) => s -> y -> InputT IO ()
 run s y = do argv <- liftIO getArgs
              case (O.getoptions argv)
@@ -117,16 +138,33 @@ run s y = do argv <- liftIO getArgs
           | O.wantVersion opts  = liftIO getProgName >>= outputVersion
           | O.wantHelp opts     = outputStrLn $ O.usage argv
           | O.wantExecStmt opts = let O.ExecStmt stmt = head . filter O.execStmt $ opts
-                                  in execYql y stmt
-          | otherwise           = let newY = putenv y (map (\(O.Env e) -> e) (filter O.env opts))
-                                  in do outputHelp
-                                        loop newY (Handler (execCmd s) execYql)
-                                        return ()
+                                  in execYql_ y stmt
+          | otherwise           = do outputHelp
+                                     loop y (Handler (execCmd s) execYql_)
+                                     return ()
+
+
+runShowTables :: Yql y => y -> IO [String]
+runShowTables y = do mxml <- fmap xmlParse (execYql y "SHOW TABLES;")
+                     case mxml
+                       of Nothing  -> return []
+                          Just xml -> return (readShowTablesXml xml)
 
 iyql :: (SessionMgr s,Yql y) => s -> y -> IO ()
-iyql s y = do myCfg  <- fmap settings basedir
-              runInputT myCfg (run s y)
-  where settings home = Settings { complete       = noCompletion
-                                 , historyFile    = Just $ joinPath [home,"history"]
-                                 , autoAddHistory = False
-                                 }
+iyql s y0 = do y      <- putenvM y0
+               tables <- runShowTables y
+               myCfg  <- fmap (settings (mkTrie tables)) basedir
+               runInputT myCfg (run s y)
+  where settings trie home = Settings { complete         = let func = return . completeCli trie
+                                                           in completeQuotedWord (Just '\\') "\"'" func (completeWord (Just '\\') " \t;" func)
+                                      , historyFile    = Just $ joinPath [home,"history"]
+                                      , autoAddHistory = False
+                                      }
+
+        mkTrie tables = fromList . concat $ [ commands
+                                            , functions
+                                            , keywords
+                                            , tables
+                                            ]
+          where commands  = map (':':) (M.keys (cmdDB s y0))
+                functions = map ('.':) (M.keys funcDB)

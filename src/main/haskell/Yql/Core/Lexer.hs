@@ -32,6 +32,8 @@ module Yql.Core.Lexer
          -- * Lexical Analysis
        , scan
        , accept
+         -- * Other
+       , keywords
        ) where
 
 import Text.ParserCombinators.Parsec
@@ -89,39 +91,40 @@ quoted = do s       <- oneOf "'\""
                          x | s==x      -> return []
                            | otherwise -> fmap (x:) (loop s)
 
-mksym :: String -> TokenT
-mksym sym | uSym `elem` keyword = TkKey uSym
-          | tkNum sym           = TkNum sym
-          | otherwise           = TkSym sym
-            where uSym = map toUpper sym
+keywords :: [String]
+keywords = [ "SELECT"
+           , "UPDATE"
+           , "INSERT"
+           , "DELETE"
+           , "DESC"
+           , "USE"
+           , "AS"
+           , "SHOW"
+           , "TABLES"
+           , "OR"
+           , "AND"
+           , "IN"
+           , "ME"
+           , "FROM"
+           , "WHERE"
+           , "SET"
+           , "VALUES"
+           , "INTO"
+           , "MATCHES"
+           , "NULL"
+           , "NOT"
+           , "LIKE"
+           , "IS"
+           , "*"
+           , "OFFSET"
+           , "LIMIT"
+           ]
 
-                  keyword = [ "SELECT"
-                            , "UPDATE"
-                            , "INSERT"
-                            , "DELETE"
-                            , "DESC"
-                            , "USE"
-                            , "AS"
-                            , "SHOW"
-                            , "TABLES"
-                            , "OR"
-                            , "AND"
-                            , "IN"
-                            , "ME"
-                            , "FROM"
-                            , "WHERE"
-                            , "SET"
-                            , "VALUES"
-                            , "INTO"
-                            , "MATCHES"
-                            , "NULL"
-                            , "NOT"
-                            , "LIKE"
-                            , "IS"
-                            , "*"
-                            , "OFFSET"
-                            , "LIMIT"
-                            ]
+mksym :: String -> TokenT
+mksym sym | uSym `elem` keywords = TkKey uSym
+          | tkNum sym            = TkNum sym
+          | otherwise            = TkSym sym
+            where uSym = map toUpper sym
 
                   tkNum (x:xs) | x=='.'    = not (null xs) && all isDigit xs
                                | otherwise = isDigit x && tkNum xs

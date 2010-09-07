@@ -41,10 +41,8 @@ parseCmd input = case (runParser parser "" "stdin" input)
 parser :: CmdParser (String,[String])
 parser = do many space
             command <- parseIdentifier
-            (do many1 space
-                args <- sepBy parseArgument (many1 space)
-                return (command,args)) <|> return (command,[])
-                     
+            args    <- sepEndBy parseArgument (many space)
+            return (command,filter (not . all isSpace) args)
 
 parseIdentifier :: CmdParser String
 parseIdentifier = do char ':'

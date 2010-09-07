@@ -31,6 +31,7 @@ module Yql.UI.CLI.Commands.ManLf
 import qualified Yql.Core.LocalFunction as F
 import qualified Data.Map as M
 import Data.List (sort)
+import Data.Char
 import Yql.UI.CLI.Command
 
 -- | Invokes the man of a given local function
@@ -41,8 +42,12 @@ manlf db = Command (doc, const exe)
                            , "    :"++ link ++" .request"
                            , "    :"++ link ++" .tables"
                            ]
-        exe [link] = case (M.lookup (drop 1 link) db)
-                     of Nothing -> return ("man: no manual entry for "++ link)
-                        Just f  -> return (F.man f link)
-        exe _   = let links = M.keys db
-                  in return (unlines (map ('.':) (sort links)))
+        exe args = if (null args)
+                   then return list
+                   else return $ concatMap help args
+          where list = let links = M.keys db
+                       in unlines (map ('.':) (sort links))
+
+                help link = case (M.lookup (drop 1 link) db)
+                            of Nothing -> "man: no manual entry for "++ link
+                               Just f  -> link ++": "++ F.man f link

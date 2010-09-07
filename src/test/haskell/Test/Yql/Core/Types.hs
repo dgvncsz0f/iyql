@@ -88,6 +88,7 @@ suite = [ testGroup "Types.hs" [ test0
                                , test44
                                , test45
                                , test46
+                               , test47
                                ]
         ]
 
@@ -310,3 +311,6 @@ test45 = testCase "showStmt shows subselects properly" $
 
 test46 = testCase "read select with subqueries" $
          do eq (SELECT ["*"] "iyql" (Just $ "foo" `OpIn` [SubSelect $ SELECT ["id"] "iyql" (Just $ "bar" `OpGt` (NumValue "7")) Nothing Nothing []]) Nothing Nothing []) (read "select * from iyql where foo in (select id from iyql where bar>7);")
+
+test47 = testCase "readShowTablesXml reads all tables from xml" $
+         do eq (Just ["foo","bar","baz"]) (fmap (readShowTablesXml) (xmlParse "<query><results><table>foo</table><table>bar</table><table>baz</table></results></query>"))

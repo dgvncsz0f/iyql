@@ -50,6 +50,7 @@ module Yql.Core.Types
        , builder
        , readStmt
        , readDescXml
+       , readShowTablesXml
          -- * Priting
        , showStmt
        , showFunc
@@ -327,6 +328,9 @@ readDescXml xml = case (map toLower securityAttr)
   where attr k = join (fmap (attribute k) (findElement "table" xml))
         Just securityAttr = attr "security" `mplus` Just "ANY"
         httpsAttr = Just "true" == attr "https"
+
+readShowTablesXml :: XML -> [String]
+readShowTablesXml = map verbatim . findElements "table"
 
 showFunc :: Function -> String
 showFunc f = prefix ++ name f ++ "(" ++ intercalate "," (map showArg (args f)) ++ ")"
