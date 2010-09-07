@@ -122,3 +122,7 @@ Most of the input is sent to the YQL. However, lines starting with : (colon) are
     * :help    -- The available commands;
     * :quit    -- Terminates the program;
     * :man     -- Help/Listing of available local functions;
+
+### Completion
+
+Hitting the tab key attemps to complete to word the cursor is after. Possible candidates include commands, local functions and tables. The table names are read in startup time, therefore, using :env command to makes no different. Only -e and env entries in $HOME/.iyql/cfg affect the tables list. It is not contextual though. In other words, it suggests everything that contains a given prefix.

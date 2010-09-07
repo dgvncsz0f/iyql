@@ -45,9 +45,7 @@ module Yql.Core.Trie
        , union
        ) where
 
-import Data.Maybe (isJust)
 import qualified Data.Map as M
-import Debug.Trace
 
 data Trie k = Trie (M.Map k (Bool,Trie k))
             deriving (Show,Eq,Ord)

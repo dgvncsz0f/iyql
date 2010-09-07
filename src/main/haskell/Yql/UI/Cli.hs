@@ -54,8 +54,6 @@ import qualified Yql.UI.CLI.Commands.SetEnv as E
 import qualified Data.Map as M
 import qualified Yql.UI.CLI.Options as O
 
-import Debug.Trace
-
 funcDB :: Yql.Core.LocalFunction.Database
 funcDB = M.fromList [ ("request", R.function)
                     , ("json", R.jsonFunction)
@@ -83,11 +81,11 @@ cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
                                        Right y' -> return y'
 
 completeCli :: Trie Char -> String -> [Completion]
-completeCli t w | member w t = map toCompletion (w : list)
-                | otherwise  = map toCompletion list
-  where toCompletion s = Completion s s True
-        
-        list = map (w++) (toList (subtrie w t))
+completeCli t w 
+  | member w t = map (\s -> Completion s s True) (w : list)
+  | otherwise  = map (\s -> Completion s s True) list
+    where fixPrefix = map (w++)
+          list      = fixPrefix (toList (subtrie w t))
 
 outputVersion :: String -> InputT IO ()
 outputVersion link = outputStrLn $ unlines [ link ++" "++ showVersion version
@@ -151,9 +149,9 @@ runShowTables y = do mxml <- fmap xmlParse (execYql y "SHOW TABLES;")
                           Just xml -> return (readShowTablesXml xml)
 
 iyql :: (SessionMgr s,Yql y) => s -> y -> IO ()
-iyql s y0 = do y      <- putenvM y0
-               tables <- runShowTables y
-               myCfg  <- fmap (settings (mkTrie tables)) basedir
+iyql s y0 = do y         <- putenvM y0
+               alltables <- runShowTables y
+               myCfg     <- fmap (settings (mkTrie alltables)) basedir
                runInputT myCfg (run s y)
   where settings trie home = Settings { complete         = let func = return . completeCli trie
                                                            in completeQuotedWord (Just '\\') "\"'" func (completeWord (Just '\\') " \t;" func)
@@ -161,10 +159,10 @@ iyql s y0 = do y      <- putenvM y0
                                       , autoAddHistory = False
                                       }
 
-        mkTrie tables = fromList . concat $ [ commands
-                                            , functions
-                                            , keywords
-                                            , tables
-                                            ]
-          where commands  = map (':':) (M.keys (cmdDB s y0))
-                functions = map ('.':) (M.keys funcDB)
+        mkTrie alltables = fromList . concat $ [ allcommands
+                                               , allfunctions
+                                               , keywords
+                                               , alltables
+                                               ]
+          where allcommands  = map (':':) (M.keys (cmdDB s y0))
+                allfunctions = map ('.':) (M.keys funcDB)
