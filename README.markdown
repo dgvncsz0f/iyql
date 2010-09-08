@@ -125,4 +125,5 @@ Most of the input is sent to the YQL. However, lines starting with : (colon) are
 
 ### Completion
 
-Hitting the tab key attemps to complete to word the cursor is after. Possible candidates include commands, local functions and tables. The table names are read in startup time, therefore, using :env command to makes no different. Only -e and env entries in $HOME/.iyql/cfg affect the tables list. It is not contextual though. In other words, it suggests everything that contains a given prefix.
+Hitting the tab key attemps to complete to word previous to the cursor. Possible candidates include commands, local functions and tables. The table names are read in upon startup, which means :env command has no effect on completion. Only -e switch and `env' entries in .iyql/cfg affect the tables suggestion. Notice that this suggestion is not contextual. In other words, it suggests everything that contains a given prefix, even though that doesn't make sense (e.g. table name prior a SELECT/UPDATE/DELETE/INSERT keyword).
+
