@@ -22,6 +22,10 @@ Installing
     $ make
     $ sudo make PREFIX=/usr/local/bin install
 
+### Install using cabal
+
+    $ cabal install iyql
+
 Getting Started
 ---------------
 

@@ -123,9 +123,8 @@ putenv = foldr (flip setenv)
 putenvM :: Yql y => y -> IO y
 putenvM y = do argv <- getArgs
                case (O.getoptions argv)
-                 of Right opts -> return (putenv y (map o2e (filter O.env opts)))
+                 of Right opts -> return (putenv y (map (\(O.Env e) -> e) (filter O.env opts)))
                     _          -> return y
-  where o2e (O.Env e) = e
 
 run :: (SessionMgr s,Yql y) => s -> y -> InputT IO ()
 run s y = do argv <- liftIO getArgs
