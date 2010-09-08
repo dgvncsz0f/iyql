@@ -1,4 +1,4 @@
-iYQL [=v0.0.1-alpha] - Interactive YQL
+iYQL - Interactive YQL
 ======================
 This project provides a CLI (command-line interface) for [YQL](http://developer.yahoo.com/yql/).
 
