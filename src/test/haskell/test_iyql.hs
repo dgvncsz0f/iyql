@@ -34,10 +34,11 @@ import qualified Test.Yql.Core.Backend as D
 import qualified Test.Yql.Core.LocalFunctions.Tables as E
 import qualified Test.Yql.Core.LocalFunctions.Request as F
 import qualified Test.Yql.Core.Trie as G
-import qualified Test.Yql.Cfg as H
-import qualified Test.Yql.UI.CLI.Commands.Parser as I
-import qualified Test.Yql.UI.CLI.Commands.WhoAmI as J
-import qualified Test.Yql.UI.CLI.Commands.SetEnv as K
+import qualified Test.Yql.Core.Session as H
+import qualified Test.Yql.Cfg as I
+import qualified Test.Yql.UI.CLI.Commands.Parser as J
+import qualified Test.Yql.UI.CLI.Commands.WhoAmI as K
+import qualified Test.Yql.UI.CLI.Commands.SetEnv as L
 
 main :: IO ()
 main = defaultMain $ concat [ A.suite
@@ -51,4 +52,5 @@ main = defaultMain $ concat [ A.suite
                             , I.suite
                             , J.suite
                             , K.suite
+                            , L.suite
                             ]
