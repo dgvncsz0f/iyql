@@ -25,11 +25,11 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -- | A [inefficient] implementation of Trie
-module Yql.Core.Trie 
+module Yql.Data.Trie 
        ( -- * Types
          Trie()
          -- * Query
-       , Yql.Core.Trie.null 
+       , Yql.Data.Trie.null 
        , member
        , size
        , subtrie

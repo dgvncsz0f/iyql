@@ -26,12 +26,12 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -- | Test Trie module
-module Test.Yql.Core.Trie where
+module Test.Yql.Data.Trie where
 
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 
-import Yql.Core.Trie as T
+import Yql.Data.Trie as T
 import Data.List (sort)
 import Test.Framework
 import Test.Framework.Providers.HUnit

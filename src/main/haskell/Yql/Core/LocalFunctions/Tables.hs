@@ -29,7 +29,7 @@ module Yql.Core.LocalFunctions.Tables
        ) where
 
 import Yql.Core.LocalFunction
-import Yql.Xml
+import Yql.Data.Xml
 import Data.List
 import qualified Data.Map as M
 

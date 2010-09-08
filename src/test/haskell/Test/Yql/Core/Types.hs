@@ -34,7 +34,7 @@ import Data.Maybe
 import qualified Data.Map as M
 import Yql.Core.Types
 import Yql.Core.LocalFunction
-import Yql.Xml
+import Yql.Data.Xml
 import Control.Monad
 import Test.Framework
 import Test.Framework.Providers.HUnit

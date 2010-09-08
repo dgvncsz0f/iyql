@@ -34,12 +34,12 @@ module Yql.Core.Backend
        , unOutputT
        ) where
 
-import Yql.Cfg
+import Yql.Data.Cfg
 import Yql.Core.Types
 import qualified Yql.Core.LocalFunctions.Request as F
 import Yql.Core.LocalFunction
 import Yql.Core.Session
-import Yql.Xml
+import Yql.Data.Xml
 import Data.Char
 import Data.Maybe
 import qualified Data.List as L

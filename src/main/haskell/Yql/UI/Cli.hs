@@ -31,10 +31,10 @@ import System.FilePath
 import System.Console.Haskeline
 import Network.OAuth.Http.HttpClient
 import Control.Monad.Trans
-import Yql.Version
-import Yql.Cfg (basedir)
-import Yql.Xml
-import Yql.Core.Trie
+import Yql.Data.Version
+import Yql.Data.Cfg (basedir)
+import Yql.Data.Xml
+import Yql.Data.Trie
 import Yql.Core.Backend
 import Yql.Core.LocalFunction
 import Yql.Core.Lexer (keywords)

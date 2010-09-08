@@ -59,7 +59,7 @@ module Yql.Core.Types
        ) where
 
 import Yql.Core.Parser
-import Yql.Xml
+import Yql.Data.Xml
 import Data.List hiding (insert,delete)
 import Data.Char
 import Control.Monad

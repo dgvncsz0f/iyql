@@ -30,7 +30,7 @@ import System.FilePath
 import Yql.Core.Backend
 import Yql.Core.Session
 import Yql.UI.Cli
-import Yql.Cfg
+import Yql.Data.Cfg
 import Network.OAuth.Consumer
 
 main :: IO ()
