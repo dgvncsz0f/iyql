@@ -1,5 +1,5 @@
 name: iyql
-version: 0.0.5
+version: 0.0.5.1
 category: Network
 license: BSD3
 license-file: LICENSE
@@ -19,25 +19,48 @@ description: Similar to popular database frontend interfaces like sqlite3, this
              are examples of such functions.
 
 executable iyql
-  build-depends:   haskell98
-                 , base<5
-                 , hoauth>=0.2.5
-                 , directory>=1.0.1.0
-                 , filepath>=1.1.0.3
-                 , containers>=0.3.0.0
-                 , utf8-string>=0.3.6
-                 , bytestring>=0.9.1.5
-                 , time>=1.1.4
-                 , mtl>=1.1.0.2
-                 , xml>=1.3.7
-                 , old-locale>=1.0.0.2
-                 , binary>=0.5.0.2
-                 , parsec>=2.1.0.1
-                 , haskeline>=0.6.2.2
   main-is: iyql.hs
   hs-source-dirs: src/main/haskell
+  build-depends: haskell98
+               , base<5
+               , hoauth>=0.2.5
+               , directory>=1.0.1.0
+               , filepath>=1.1.0.3
+               , containers>=0.3.0.0
+               , utf8-string>=0.3.6
+               , bytestring>=0.9.1.5
+               , time>=1.1.4
+               , mtl>=1.1.0.2
+               , xml>=1.3.7
+               , old-locale>=1.0.0.2
+               , binary>=0.5.0.2
+               , parsec>=2.1.0.1
+               , haskeline>=0.6.2.2
+  other-modules: Yql.UI.Cli
+               , Yql.UI.CLI.Command
+               , Yql.UI.CLI.Options
+               , Yql.UI.CLI.Commands.Parser
+               , Yql.UI.CLI.Commands.WhoAmI
+               , Yql.UI.CLI.Commands.Logout
+               , Yql.UI.CLI.Commands.ManLf
+               , Yql.UI.CLI.Commands.Login
+               , Yql.UI.CLI.Commands.SetEnv
+               , Yql.UI.CLI.Input
+               , Yql.Data.Xml
+               , Yql.Data.Trie
+               , Yql.Data.Version
+               , Yql.Data.Cfg
+               , Yql.Core.Backend
+               , Yql.Core.Session
+               , Yql.Core.Lexer
+               , Yql.Core.Parser
+               , Yql.Core.LocalFunctions.Request
+               , Yql.Core.LocalFunctions.Tables
+               , Yql.Core.Types
+               , Yql.Core.LocalFunction
   ghc-options: -W -Wall -fwarn-tabs -fno-warn-unused-do-bind
 
 source-repository head
   type:     git
   location: git@github.com:dsouza/iyql.git
+
