@@ -20,11 +20,11 @@ Installing
 ### Compile and Install
 
     $ make
-    $ sudo make PREFIX=/usr/local/bin install
+    $ sudo make PREFIX=/usr/local install
 
 ### Install using cabal
 
-    $ cabal install iyql
+    $ cabal install --symlink-bindir=/usr/local/bin iyql
 
 Getting Started
 ---------------
