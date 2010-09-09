@@ -10,18 +10,17 @@ HPC     = hpc
 
 HCFLAGS =
 
-MAIN_IYQL = build/bin/iyql
+MAIN_IYQL = dist/bin/iyql
 MAIN_SRC  = $(foreach d,$(shell $(FIND) src/main/haskell/Yql -type d),$(wildcard $(d)/*.hs))
-TEST_IYQL = build/bin/test_iyql
+TEST_IYQL = dist/bin/test_iyql
 TEST_SRC  = $(foreach d,$(shell $(FIND) src/test/haskell/Test/Yql -type d),$(wildcard $(d)/*.hs))
 
 .PHONY: default
 default: compile
 
 .PHONY: dist
-dist:
-	$(CABAL) configure
-	$(CABAL) sdist
+pkg:
+	$(CABAL) configure && $(CABAL) sdist
 
 .PHONY: default
 default: compile
@@ -44,7 +43,7 @@ test: $(TEST_IYQL)
 .PHONY: test-hpc
 test-hpc: compile-hpc $(TEST_IYQL)
 	-@$(TEST_IYQL) >/dev/null
-	$(HPC) markup --destdir=build/hpc test_iyql.tix
+	$(HPC) markup --destdir=dist/hpc test_iyql.tix
 	$(HPC) report test_iyql.tix
 
 .PHONY: clean
@@ -54,19 +53,19 @@ clean:
 	$(FIND) src/main/haskell -name \*.hi -exec rm -f {} \;
 	$(FIND) src/test/haskell -name \*.o -exec rm -f {} \;
 	$(FIND) src/test/haskell -name \*.hi -exec rm -f {} \;
-	rm -f -r build
+	rm -f -r dist
 	rm -f -r *.tix
 	rm -f -r .hpc
 
-build:
+dist:
 	@[ -d $(@) ] || mkdir $(@)
 
-build/bin: build
+dist/bin: dist
 	@[ -d $(@) ] || mkdir $(@)
 
-$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAIN_SRC) build/bin
+$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAIN_SRC) dist/bin
 	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)
 
-$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAIN_SRC) $(TEST_SRC) build/bin
+$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAIN_SRC) $(TEST_SRC) dist/bin
 	$(HC) -o $(@) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
 

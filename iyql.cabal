@@ -58,7 +58,6 @@ executable iyql
                , Yql.Core.LocalFunctions.Tables
                , Yql.Core.Types
                , Yql.Core.LocalFunction
-  ghc-options: -W -Wall -fwarn-tabs -fno-warn-unused-do-bind
 
 source-repository head
   type:     git
