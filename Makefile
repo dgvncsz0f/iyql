@@ -19,7 +19,7 @@ TEST_SRC  = $(foreach d,$(shell $(FIND) src/test/haskell/Test/Yql -type d),$(wil
 default: compile
 
 .PHONY: dist
-pkg:
+dist:
 	$(CABAL) configure && $(CABAL) sdist
 
 .PHONY: default
@@ -57,15 +57,13 @@ clean:
 	rm -f -r *.tix
 	rm -f -r .hpc
 
-dist:
-	@[ -d $(@) ] || mkdir $(@)
-
-dist/bin: dist
-	@[ -d $(@) ] || mkdir $(@)
-
-$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAIN_SRC) dist/bin
+$(MAIN_IYQL): src/main/haskell/iyql.hs $(MAIN_SRC)
+	@[ -d dist ] || mkdir dist
+	@[ -d dist/bin ] || mkdir dist/bin
 	$(HC) -o $(@) -isrc/main/haskell --make $(HCFLAGS) $(<)
 
-$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAIN_SRC) $(TEST_SRC) dist/bin
+$(TEST_IYQL): src/test/haskell/test_iyql.hs $(MAIN_SRC) $(TEST_SRC)
+	@[ -d dist ] || mkdir dist
+	@[ -d dist/bin ] || mkdir dist/bin
 	$(HC) -o $(@) -isrc/test/haskell -isrc/main/haskell --make $(HCFLAGS) $(<)
 
