@@ -1,10 +1,10 @@
 name: iyql
-version: 0.0.5.1
+version: 0.0.5.2
 category: Network
-license: BSD3
+license: GPL-3
 license-file: LICENSE
-author: Diego Souza
-maintainer: Diego Souza <dsouza at bitforest.org>
+author: Diego Souza <dsouza+iyql at bitforest.org>
+maintainer: Diego Souza <dsouza+iyql at bitforest.org>
 stability: experimental
 build-type: Simple
 cabal-version: >= 1.6
