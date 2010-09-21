@@ -29,7 +29,7 @@ module Yql.UI.Cli where
 import System
 import System.FilePath
 import System.Console.Haskeline
-import Network.OAuth.Http.HttpClient
+import Network.OAuth.Http.CurlHttpClient
 import Control.Monad.Trans
 import Yql.Data.Version
 import Yql.Data.Cfg (basedir)
@@ -105,7 +105,7 @@ execYql_ y input = liftIO (execYql y input) >>= outputStrLn
 execYql :: Yql y => y -> String -> IO String
 execYql y input = case (parseYql input builder)
                   of Left err   -> return (show err)
-                     Right stmt -> fmap (either id id) (unCurlM (unOutputT (execute y funcDB stmt)))
+                     Right stmt -> fmap (either id id) (unOutputT (execute y CurlClient funcDB stmt))
 
 execCmd :: (SessionMgr s,Yql y) => s -> y -> String -> InputT IO (Maybe y)
 execCmd s y input = case (parseCmd input)
