@@ -157,3 +157,29 @@ Completion
 ~~~~~~~~~~
 
 Hitting the tab key attemps to complete to word previous to the cursor. Possible candidates include commands, local functions and tables. The table names are read in upon startup, which means :env command has no effect on completion. Only -e switch and \`env\' entries in ``.iyql/cfg`` affect the tables suggestion. Notice that this suggestion is not contextual. In other words, it suggests everything that contains a given prefix, even though that doesn't make sense (e.g. table name prior a ``SELECT/UPDATE/DELETE/INSERT`` keyword).
+
+Changelog
+---------
+
+::
+
+  v0.0.6
+
+* Error handling
+
+::
+
+  v0.0.5
+
+* Code completion
+
+::
+
+  <= v0.0.4
+
+* Reusing oauth_token
+* Adding iyql commands (e.g. :help)
+* Parser is complete, but where clauses with parenthesis
+* Local functions (e.g. .tables)
+* History
+

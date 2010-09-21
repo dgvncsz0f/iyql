@@ -198,8 +198,8 @@ instance SessionMgr a => Yql (Backend a) where
   
   getenv = defaultEnv
   
-  credentials _ c Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
-  credentials be c App  = ignite (application be)
+  credentials _ _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
+  credentials be _ App  = ignite (application be)
   credentials be c User = do { token_ <- liftIO (load (sessionMgr be))
                              ; reqUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_reqtoken_url" defReqUrl)
                              ; accUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_acctoken_url" defAccUrl)
