@@ -36,16 +36,15 @@ import Yql.Core.Backend
 import qualified Data.Map as M
 import Network.OAuth.Consumer
 import Network.OAuth.Http.Response
-import Network.OAuth.Http.CurlHttpClient
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase "test endpoint returns the string defined" $
-        eq ("foobar",80) (myEndpoint $ YqlBackend undefined DevNullStorage [] ("foobar",80))
+        eq ("foobar",80) (myEndpoint $ YqlBackend (Application "iyql" "" OOB) DevNullStorage [] ("foobar",80))
 
 test2 = testCase "test execute with `select title,abstract from search.web where query=\"iyql\"'" $
-        do resp <- unOutputT $ execute (YqlBackend undefined DevNullStorage [] ("query.yahooapis.com",80)) CurlClient M.empty (read "select title,abstract from search.web where query=\"iyql\";")
+        do resp <- unOutputT $ execute (YqlBackend (Application "iyql" "" OOB) DevNullStorage [] ("query.yahooapis.com",80)) M.empty (read "select title,abstract from search.web where query=\"iyql\";")
            ok (isRight resp)
   where isRight (Right _) = True
         isRight _         = False

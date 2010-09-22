@@ -1,5 +1,5 @@
 name: iyql
-version: 0.0.6
+version: 0.0.7
 category: Network
 license: GPL-3
 license-file: LICENSE
@@ -23,7 +23,7 @@ executable iyql
   hs-source-dirs: src/main/haskell
   build-depends: haskell98
                , base<5
-               , hoauth>=0.3.0
+               , hoauth>=0.3.1
                , directory>=1.0.1.0
                , filepath>=1.1.0.3
                , containers>=0.3.0.0

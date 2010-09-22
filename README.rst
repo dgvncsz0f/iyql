@@ -163,6 +163,12 @@ Changelog
 
 ::
 
+  v0.0.7
+
+* Updating hoauth library [v0.3.1]
+
+::
+
   v0.0.6
 
 * Error handling

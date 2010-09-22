@@ -38,8 +38,8 @@ main = do session <- fmap mkSession basedir
           config  <- usrCfg
           iyql session (backend session config)
   where backend session config = YqlBackend (Application cfgCKey cfgCSec OOB) session (tryCfgs config "env" []) yqlEndpoint
-          where cfgCKey     = tryCfg config "oauth_consumer_key" "<<no_ckey>>"
-                cfgCSec     = tryCfg config "oauth_consumer_sec" "<<no_csec>>"
+          where cfgCKey     = tryCfg config "oauth_consumer_key" "iyql"
+                cfgCSec     = tryCfg config "oauth_consumer_sec" ""
                 yqlEndpoint = let (host,port) = break (==':') (tryCfg config "endpoint" "query.yahooapis.com:80")
                               in case port
                                  of []    -> (host,80)

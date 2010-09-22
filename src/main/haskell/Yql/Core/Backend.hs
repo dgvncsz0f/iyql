@@ -52,7 +52,7 @@ import qualified Codec.Binary.UTF8.String as U
 import Network.OAuth.Consumer hiding (application)
 import qualified Network.OAuth.Http.Request as R
 import Network.OAuth.Http.Response
-import Network.OAuth.Http.HttpClient
+import Network.OAuth.Http.CurlHttpClient
 
 newtype OutputT m a = OutputT { unOutputT :: m (Either String a) }
 
@@ -65,19 +65,19 @@ data Backend s = YqlBackend { application  :: Application  -- ^ The applicat tha
 
 -- | Tells the minimum security level required to perform this
 -- statament.
-descTablesIn :: (MonadIO m,HttpClient c,Yql y) => y -> c -> [String] -> Expression -> OutputT m Description
-descTablesIn y c envs stmt = case stmt
-                             of _ | desc stmt       -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
-                                  | usingMe stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
-                                  | showTables stmt -> return (Table "<<dummy>>" Any False)
-                                  | otherwise       -> fmap (foldr1 joinDesc) (mapM execDesc (tables stmt))
+descTablesIn :: (MonadIO m,Yql y) => y -> [String] -> Expression -> OutputT m Description
+descTablesIn y envs stmt = case stmt
+                           of _ | desc stmt       -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" Any False) (tables stmt))
+                                | usingMe stmt    -> return $ foldr1 joinDesc (map (const $ Table "<<many>>" User False) (tables stmt))
+                                | showTables stmt -> return (Table "<<dummy>>" Any False)
+                                | otherwise       -> fmap (foldr1 joinDesc) (mapM execDesc (tables stmt))
     where parseXml xml = case (xmlParse xml)
                          of Just doc -> case (readDescXml doc)
                                         of Just rst -> return rst
                                            Nothing  -> fail $ "couldn't desc tables " ++ L.intercalate "," (tables stmt)
                             Nothing  -> fail "error parsing xml"
           
-          execDesc t = execute y c database (mkDesc stmt t) >>= parseXml
+          execDesc t = execute y database (mkDesc stmt t) >>= parseXml
             where database = M.fromList [("request", F.function)]
           
           mkDesc (USE u a stmt') t = USE u a (mkDesc stmt' t)
@@ -134,7 +134,10 @@ class Yql y where
   -- | Returns the endpoint this backend is pointing to
   endpoint :: y -> (String,Int)
   endpoint _ = ("query.yahooapis.com",80)
-  
+
+  -- | The OAuth application that is being used
+  app :: y -> Application
+
   -- | Add a new env that is included in the request
   setenv :: y -> String -> y
   
@@ -145,27 +148,29 @@ class Yql y where
   getenv :: y -> [String]
 
   -- | Returns the credentials that are used to perform the request.
-  credentials :: (MonadIO m,HttpClient c) => y -> c -> Security -> OAuthMonadT m ()
+  credentials :: (MonadIO m) => y -> Security -> OAuthMonadT m ()
   
   -- | Given an statement executes the query on yql. This function is
   -- able to decide whenever that query requires authentication
   -- [TODO]. If it does, it uses the oauth token in order to fullfil
   -- the request.
-  execute :: (MonadIO m,HttpClient c) => y -> c -> Database -> Expression -> OutputT m String
-  execute y c db stmt = do { mkRequest' <- fmap (execBefore_) (ld' db stmt)
-                           ; mkResponse <- fmap execAfter_ (ld' db stmt)
-                           ; mkOutput   <- fmap execTransform_ (ld' db stmt)
-                           ; tableDesc  <- descTablesIn y c (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
-                           ; result     <- lift $ runOAuth handleE NoToken $ do { credentials y c (security tableDesc)
-                                                                                ; url <- signRq2 HMACSHA1 (Just $ Realm "yahooapis.com") (fixRequest $ mkRequest' $ (myRequest tableDesc))
-                                                                                ; serviceRequest c url >>= return . Right . mkOutput . toString . mkResponse
-                                                                                }
-                           ; case result
-                             of Right v  -> return v
-                                Left err -> fail err
-                           }
+  execute :: (MonadIO m) => y -> Database -> Expression -> OutputT m String
+  execute y db stmt = do { mkRequest' <- fmap (execBefore_) (ld' db stmt)
+                         ; mkResponse <- fmap execAfter_ (ld' db stmt)
+                         ; mkOutput   <- fmap execTransform_ (ld' db stmt)
+                         ; tableDesc  <- descTablesIn y (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
+                         ; result     <- lift $ runOAuth handleE token $ do { credentials y (security tableDesc) >> getToken
+                                                                            ; url <- signRq2 HMACSHA1 (Just $ Realm "yahooapis.com") (fixRequest $ mkRequest' $ (myRequest tableDesc))
+                                                                            ; serviceRequest CurlClient url >>= return . Right . mkOutput . toString . mkResponse
+                                                                            }
+                         ; case result
+                           of Right v  -> return v
+                              Left err -> fail err
+                         }
 
     where myRequest = mkRequest stmt (getenv y)
+          
+          token = fromApplication (app y)
           
           fixRequest r = r { R.host = fst (endpoint y)
                            , R.port = snd (endpoint y)
@@ -192,40 +197,42 @@ toString resp | statusOk && isXML = xmlPrint . fromJust . xmlParse $ payload
 instance SessionMgr a => Yql (Backend a) where
   endpoint be = myEndpoint be
   
+  app = application
+  
   setenv be e = be { defaultEnv = e : defaultEnv be }
   
   unsetenv be e = be { defaultEnv = L.delete e (defaultEnv be) }
   
   getenv = defaultEnv
   
-  credentials _ _ Any   = putToken (TwoLegg (Application "no_ckey" "no_csec" OOB) R.empty)
-  credentials be _ App  = ignite (application be)
-  credentials be c User = do { token_ <- liftIO (load (sessionMgr be))
-                             ; reqUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_reqtoken_url" defReqUrl)
-                             ; accUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_acctoken_url" defAccUrl)
-                             ; case token_
-                               of Nothing               -> do { ignite (application be) 
-                                                              ; signRq2 PLAINTEXT Nothing reqUrl >>= oauthRequest c
-                                                              ; cliAskAuthorization authUrl
-                                                              ; signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest c
-                                                              ; getToken >>= liftIO . save (sessionMgr be)
-                                                              }
-                                  Just token
-                                    | threeLegged token -> do { putToken token
-                                                              ; now    <- liftIO getCurrentTime
-                                                              ; offset <- liftIO $ fmap fromJust (mtime (sessionMgr be))
-                                                              ; when (now >= expiration offset token) $
-                                                                do { signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest c
-                                                                   ; getToken >>=  liftIO . save (sessionMgr be)
-                                                                   }
-                                                              }
-                                    | otherwise         -> do { putToken token
-                                                              ; signRq2 PLAINTEXT Nothing reqUrl >>= oauthRequest c
-                                                              ; cliAskAuthorization authUrl
-                                                              ; signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest c
-                                                              ; getToken >>= liftIO . save (sessionMgr be)
-                                                              }
-                             }
+  credentials _ Any   = return ()
+  credentials be App  = ignite (application be)
+  credentials be User = do { token_ <- liftIO (load (sessionMgr be))
+                           ; reqUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_reqtoken_url" defReqUrl)
+                           ; accUrl <- liftIO $ fmap (fromJust . R.parseURL) (tryUsrCfg "oauth_acctoken_url" defAccUrl)
+                           ; case token_
+                             of Nothing               -> do { ignite (application be) 
+                                                            ; signRq2 PLAINTEXT Nothing reqUrl >>= oauthRequest CurlClient
+                                                            ; cliAskAuthorization authUrl
+                                                            ; signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest CurlClient
+                                                            ; getToken >>= liftIO . save (sessionMgr be)
+                                                            }
+                                Just token
+                                  | threeLegged token -> do { putToken token
+                                                            ; now    <- liftIO getCurrentTime
+                                                            ; offset <- liftIO $ fmap fromJust (mtime (sessionMgr be))
+                                                            ; when (now >= expiration offset token) $
+                                                              do { signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest CurlClient
+                                                                 ; getToken >>=  liftIO . save (sessionMgr be)
+                                                                 }
+                                                            }
+                                  | otherwise         -> do { putToken token
+                                                            ; signRq2 PLAINTEXT Nothing reqUrl >>= oauthRequest CurlClient
+                                                            ; cliAskAuthorization authUrl
+                                                            ; signRq2 PLAINTEXT Nothing accUrl >>= oauthRequest CurlClient
+                                                            ; getToken >>= liftIO . save (sessionMgr be)
+                                                            }
+                           }
     where defReqUrl  = "https://api.login.yahoo.com/oauth/v2/get_request_token"
           defAccUrl  = "https://api.login.yahoo.com/oauth/v2/get_token"
 

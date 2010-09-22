@@ -30,6 +30,7 @@ module Test.Yql.UI.CLI.Commands.SetEnv where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
+import Network.OAuth.Consumer
 import Yql.Core.Backend
 import Yql.UI.CLI.Command
 import qualified Yql.UI.CLI.Commands.SetEnv as E
@@ -42,9 +43,9 @@ newtype MyBackend = MyBackend [String]
                   deriving (Eq,Show)
 
 instance Yql MyBackend where
-  endpoint    = undefined
-  credentials = undefined
-  
+  endpoint    = const ("query.yahooapis.com",80)
+  credentials = const $ const $ return ()
+  app         = const $ Application "iyql" "" OOB
   setenv (MyBackend es) e   = MyBackend (e:es)
   unsetenv (MyBackend es) e = MyBackend (delete e es)
   getenv (MyBackend es)     = es

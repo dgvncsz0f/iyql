@@ -32,16 +32,17 @@ import Yql.Core.Backend
 import Yql.Core.Types
 import Yql.UI.CLI.Command
 import Network.OAuth.Consumer
-import Network.OAuth.Http.CurlHttpClient
 
 -- | Removes any saved oauth_token.
 login :: Yql y => y -> Command ()
 login be = Command (const doc, exe)
   where doc = "Execute the oauth authorization flow to perform authenticated requests."
 
-        exe link _ = do { runOAuth handleE NoToken (credentials be CurlClient User)
+        exe link _ = do { runOAuth handleE token (credentials be User)
                         ; return ()
                         }
           where handleE err = case (lines err)
                               of []     -> putStrLn $ link ++ ": error"
                                  (x:xs) -> putStrLn $ unlines ((link ++ ": " ++ x) : xs)
+                
+                token = fromApplication (app be)
