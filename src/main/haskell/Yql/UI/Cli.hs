@@ -31,8 +31,9 @@ import System.FilePath
 import System.Console.Haskeline
 import Control.Monad.Trans
 import Yql.Data.Version
-import Yql.Data.Cfg (basedir)
+import Yql.Data.Cfg (basedir,tryUsrCfg)
 import Yql.Data.Xml
+import Yql.Data.PPrint
 import Yql.Data.Trie
 import Yql.Core.Backend
 import Yql.Core.LocalFunction
@@ -53,31 +54,40 @@ import qualified Yql.UI.CLI.Commands.SetEnv as E
 import qualified Data.Map as M
 import qualified Yql.UI.CLI.Options as O
 
-funcDB :: Yql.Core.LocalFunction.Database
-funcDB = M.fromList [ ("request", F1.function)
-                    , ("json", F1.jsonFunction)
-                    , ("diagnostics", F1.diagnosticsFunction)
-                    , ("endpoint", F1.endpointFunction)
-                    , ("tree", F2.function)
-                    ]
-        
+funcDBM :: IO Yql.Core.LocalFunction.Database
+funcDBM = do { colors <- fmap (=="true") (tryUsrCfg "tree.colors" "false")
+             ; return $ M.fromList [ ("request", F1.function)
+                                   , ("json", F1.jsonFunction)
+                                   , ("diagnostics", F1.diagnosticsFunction)
+                                   , ("endpoint", F1.endpointFunction)
+                                   , ("tree", F2.function (myRender colors))
+                                   ]
+             }
+  where myRender True  = renderTo Terminal
+        myRender False = renderTo Memory
 
-cmdDB :: (SessionMgr s, Yql y) => s -> y -> Yql.UI.CLI.Command.Database y
-cmdDB s y = M.insert "help" (bind y $ dump $ help woHelp) woHelp
-  where woHelp = M.fromList [ ("logout", bind y $ logout s)
-                            , ("login", bind y $ login y)
-                            , ("whoami", bind y $ dump $ whoami s)
-                            , ("help", bind y $ help M.empty)
-                            , ("env", fixSetenv (E.setenv y))
-                            , ("man", bind y $ dump $ manlf funcDB)
-                            ]
+cmdDBM :: (SessionMgr s, Yql y) => s -> y -> IO (Yql.UI.CLI.Command.Database y)
+cmdDBM s y = do { woHelp <- woHelpM
+                ; return $ M.insert "help" (bind y $ dump $ help woHelp) woHelp
+                }
+  where woHelpM = do { funcDB <- funcDBM
+                     ; return $ M.fromList [ ("logout", bind y $ logout s)
+                                           , ("login", bind y $ login y)
+                                           , ("whoami", bind y $ dump $ whoami s)
+                                           , ("help", bind y $ help M.empty)
+                                           , ("env", fixSetenv (E.setenv y))
+                                           , ("man", bind y $ dump $ manlf funcDB)
+                                           ]
+                     }
         
         fixSetenv (Command (d,f)) = Command (d,proxy)
-          where proxy n argv = do output <- f n argv
-                                  case output
-                                    of Left out -> do putStrLn out
-                                                      return y
+          where proxy n argv = do { output <- f n argv
+                                  ; case output
+                                    of Left out -> do { putStrLn out
+                                                      ; return y
+                                                      }
                                        Right y' -> return y'
+                                  }
 
 completeCli :: Trie Char -> String -> [Completion]
 completeCli t w 
@@ -95,72 +105,85 @@ outputVersion link = outputStrLn $ unlines [ link ++" "++ showVersion version
                                            ]
 
 outputHelp :: InputT IO ()
-outputHelp = do outputStrLn "Enter :help for instructions"
-                outputStrLn "Enter YQL statements terminated with a \";\""
+outputHelp = do { outputStrLn "Enter :help for instructions"
+                ; outputStrLn "Enter YQL statements terminated with a \";\""
+                }
 
 execYql_ :: Yql y => y -> String -> InputT IO ()
 execYql_ y input = liftIO (execYql y input) >>= outputStrLn
 
 execYql :: Yql y => y -> String -> IO String
-execYql y input = case (parseYql input builder)
-                  of Left err   -> return (show err)
-                     Right stmt -> fmap (either id id) (unOutputT (execute y funcDB stmt))
-
+execYql y input = do { funcDB <- funcDBM
+                     ; case (parseYql input builder)
+                       of Left err   -> return (show err)
+                          Right stmt -> fmap (either id id) (unOutputT (execute y funcDB stmt))
+                     } 
 execCmd :: (SessionMgr s,Yql y) => s -> y -> String -> InputT IO (Maybe y)
 execCmd s y input = case (parseCmd input)
-                    of Nothing              -> do outputStrLn (input ++ " : parse error")
-                                                  return (Just y)
+                    of Nothing              -> do { outputStrLn (input ++ " : parse error")
+                                                  ; return (Just y)
+                                                  }
                        Just ("quit",_)      -> return Nothing
-                       Just (link,argv)     -> case (M.lookup link (cmdDB s y))
-                                               of Nothing  -> do outputStrLn (input ++ " : unknown command") 
-                                                                 return (Just y)
-                                                  Just cmd -> fmap Just (liftIO $ bin cmd link argv)
+                       Just (link,argv)     -> do { cmdDB <- liftIO (cmdDBM s y)
+                                                  ; case (M.lookup link cmdDB)
+                                                    of Nothing  -> do { outputStrLn (input ++ " : unknown command") 
+                                                                      ; return (Just y)
+                                                                      }
+                                                       Just cmd -> fmap Just (liftIO $ bin cmd link argv)
+                                                  }
 
 putenv :: Yql y => y -> [String] -> y
 putenv = foldr (flip setenv)
 
 putenvM :: Yql y => y -> IO y
-putenvM y = do argv <- getArgs
-               case (O.getoptions argv)
+putenvM y = do { argv <- getArgs
+               ; case (O.getoptions argv)
                  of Right opts -> return (putenv y (map (\(O.Env e) -> e) (filter O.env opts)))
                     _          -> return y
-
+               }
+                 
 run :: (SessionMgr s,Yql y) => s -> y -> InputT IO ()
-run s y = do argv <- liftIO getArgs
-             case (O.getoptions argv)
+run s y = do { argv <- liftIO getArgs
+             ; case (O.getoptions argv)
                of Left errors   -> outputStrLn errors
                   Right actions -> runActions argv actions
+             }
   where runActions argv opts
           | O.wantVersion opts  = liftIO getProgName >>= outputVersion
           | O.wantHelp opts     = outputStrLn $ O.usage argv
           | O.wantExecStmt opts = let O.ExecStmt stmt = head . filter O.execStmt $ opts
                                   in execYql_ y stmt
-          | otherwise           = do outputHelp
-                                     loop y (Handler (execCmd s) execYql_)
-                                     return ()
+          | otherwise           = do { outputHelp
+                                     ; loop y (Handler (execCmd s) execYql_)
+                                     ; return ()
+                                     }
 
 
 runShowTables :: Yql y => y -> IO [String]
-runShowTables y = do mxml <- fmap xmlParse (execYql y "SHOW TABLES;")
-                     case mxml
+runShowTables y = do { mxml <- fmap xmlParse (execYql y "SHOW TABLES;")
+                     ; case mxml
                        of Nothing  -> return []
                           Just xml -> return (readShowTablesXml xml)
+                     }
 
 iyql :: (SessionMgr s,Yql y) => s -> y -> IO ()
-iyql s y0 = do y         <- putenvM y0
-               alltables <- runShowTables y
-               myCfg     <- fmap (settings (mkTrie alltables)) basedir
-               runInputT myCfg (run s y)
+iyql s y0 = do { y         <- putenvM y0
+               ; alltables <- runShowTables y
+               ; cmdDB     <- cmdDBM s y0
+               ; funcDB    <- funcDBM
+               ; myCfg     <- fmap (settings (mkTrie cmdDB funcDB alltables)) basedir
+               ; runInputT myCfg (run s y)
+               }
   where settings trie home = Settings { complete         = let func = return . completeCli trie
                                                            in completeQuotedWord (Just '\\') "\"'" func (completeWord (Just '\\') " \t;" func)
                                       , historyFile    = Just $ joinPath [home,"history"]
                                       , autoAddHistory = False
                                       }
 
-        mkTrie alltables = fromList . concat $ [ allcommands
-                                               , allfunctions
-                                               , keywords
-                                               , alltables
-                                               ]
-          where allcommands  = map (':':) (M.keys (cmdDB s y0))
+        mkTrie cmdDB funcDB alltables = fromList . concat $ [ allcommands
+                                                            , allfunctions
+                                                            , keywords
+                                                            , alltables
+                                                            ]
+          where allcommands  = map (':':) (M.keys cmdDB)
                 allfunctions = map ('.':) (M.keys funcDB)

@@ -27,6 +27,9 @@
 module Yql.Data.PPrint
        ( -- * Types 
          Doc()
+       , Color(..)
+       , Style(..)
+       , Device(..)
          -- * Combinators
        , text
        , newline
@@ -37,13 +40,41 @@ module Yql.Data.PPrint
        , cat
        , rspace
        , (+++)
+         -- * Style
+       , style
          -- * Query
        , width
          -- * Rendering
        , render
+       , renderTo
        ) where
 
-data Doc = Text String Doc
+import Data.Word (Word8)
+import Data.Maybe
+import Text.Printf
+
+data Color = Black
+           | White
+           | Red
+           | Green
+           | Yellow
+           | Blue
+           | Magenta
+           | Cyan
+           | None
+           deriving (Eq)
+
+data Device = Memory
+            | Terminal
+            deriving (Eq)
+
+data Style = Style { fgcolor :: Color
+                   , bgcolor :: Color
+                   , bold    :: Bool
+                   }
+           | Plain
+
+data Doc = Text (Style,String) Doc
          | Line Int Doc
          | Space Int Doc
          | Nil
@@ -57,12 +88,23 @@ data Doc = Text String Doc
 -- lspace :: Int -> Doc -> Doc
 -- lspace by = space by
 
+color :: (Style -> Color) -> Style -> Color
+color _ Plain = None
+color f style = f style
+
+-- | Applies a given style to the document
+style :: Style -> Doc -> Doc
+style s0 (Text (s1,t) d) = Text (s0,t) (style s1 d)
+style s (Line n d)       = Line n (style s d)
+style s (Space n d)      = Space n (style s d)
+style _ Nil              = Nil
+
 -- | Add space to the right
 rspace :: Int -> Doc -> Doc
 rspace by = (+++ (space by Nil))
 
 text :: String -> Doc
-text = flip Text Nil
+text t = Text (Plain,t) Nil
 
 newline :: Doc -> Doc
 newline = Line 0
@@ -73,17 +115,17 @@ space m d           = Space m d
 
 -- | Left-padding all newlines in the following document
 nest :: Int -> Doc -> Doc
-nest _ Nil         = Nil
-nest m (Text s d)  = Text s (nest m d)
+nest m (Text t d)  = Text t (nest m d)
 nest m (Line n d)  = Line (m+n) (nest m d)
 nest m (Space n d) = Space n (nest m d)
+nest _ Nil         = Nil
 
 -- | Same as nest but uses a given document as the padding
 nestWith :: Doc -> Doc -> Doc
-nestWith _ Nil         = Nil
-nestWith m (Text s d)  = Text s (nestWith m d)
+nestWith m (Text t d)  = Text t (nestWith m d)
 nestWith m (Line n d)  = Line n (m +++ nestWith m d)
 nestWith m (Space n d) = Space n (nestWith m d)
+nestWith _ Nil         = Nil
 
 -- | The empty document, which in general is rendered as the null string.
 empty :: Doc
@@ -98,22 +140,44 @@ cat :: [Doc] -> Doc
 cat = foldr ((+++) . newline) empty 
 
 -- columns :: Doc -> Int
--- columns (Text s d)  = length s + (columns d)
+-- columns (Text t d)  = length s + (columns d)
 -- columns (Space m d) = m + (columns d)
 -- columns _           = 0
 
 (+++) :: Doc -> Doc -> Doc
-(Text s d) +++ x  = Text s (d +++ x)
+(Text t d) +++ x  = Text t (d +++ x)
 (Line n d) +++ x  = Line n (d +++ x)
 (Space n d) +++ x = Space n (d +++ x)
 Nil +++ x         = x
 infixr 9 +++
 
+renderTo :: Device -> Doc -> String
+renderTo dev Nil         = ""
+renderTo dev (Space k d) = (replicate k ' ') ++ renderTo dev d
+renderTo dev (Line k d)  = "\n" ++ (replicate k ' ') ++ renderTo dev d
+renderTo dev (Text t d)  = print t ++ renderTo dev d
+  where print (s,v)
+          | dev == Memory   = v
+          | dev == Terminal = printf "\x1b[%dm\x1b[%dm\x1b[%dm%s\x1b[0m" (termBold :: Int) termFg termBg v
+            where termFg   = color2ansi (30+) 39 (color fgcolor s)
+                  termBg   = color2ansi (40+) 49 (color bgcolor s)
+                  termBold = if (bold s)
+                             then 1
+                             else 22
+
 render :: Doc -> String
-render Nil         = ""
-render (Space k d) = (replicate k ' ') ++ render d
-render (Line k d)  = "\n" ++ (replicate k ' ') ++ render d
-render (Text s d)  = s ++ render d
+render = renderTo Memory
+
+color2ansi :: (Int -> Int) -> Int -> Color -> Int
+color2ansi f _ Black   = f 0
+color2ansi f _ Red     = f 1
+color2ansi f _ Green   = f 2
+color2ansi f _ Yellow  = f 3
+color2ansi f _ Blue    = f 4
+color2ansi f _ Magenta = f 5
+color2ansi f _ Cyan    = f 6
+color2ansi f _ White   = f 7
+color2ansi _ def _     = def
 
 instance Show Doc where
   showsPrec _ = showString . render

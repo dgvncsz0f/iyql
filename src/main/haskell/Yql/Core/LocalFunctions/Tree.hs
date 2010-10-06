@@ -33,32 +33,45 @@ import Yql.Data.Xml
 import Yql.Core.LocalFunction
 import Data.Char
 
-data Tree = Branch String [Tree]
-          | Leaf String String
+data Tree a = Branch a  [Tree a]
+            | Leaf a a
 
-function :: Exec
-function = Transform (const doc) (const $ render . xml2doc)
+function :: (Doc -> String) -> Exec
+function myRender = Transform (const doc) (const $ myRender . xml2doc)
   where doc = unlines [ "Reads the xml output and transforms it into a tree-like format"
                       ]
 
-showTree :: Tree -> Doc
-showTree (Branch k xs)  = text "+- " +++ text k +++ nestWith (text "|  ") (cat $ map showTree xs)
-showTree (Leaf k v)     = text "+- " +++ text k +++ text ": " +++ text v
+showTree :: Tree Doc -> Doc
+showTree (Branch k xs)  = mkRegular "+- " +++ k +++ nestWith (mkRegular "|  ") (cat $ map showTree xs)
+showTree (Leaf k v)     = mkRegular "+- " +++ k +++ mkRegular ": " +++ v
 
 xml2doc :: String -> Doc
-xml2doc raw = text "Results" +++ cat (map (showTree . xml2tree) nodes)
+xml2doc raw = mkRegular "Results" +++ cat (map (showTree . xml2tree) nodes)
   where Just xml     = xmlParse raw
         Just docRoot = findElement "results" xml
         nodes        = filter element (childNodes docRoot)
 
-xml2tree :: XML -> Tree
+xml2tree :: XML -> Tree Doc
 xml2tree xml = Branch label subtree
   where label      
-          | hasContent = tagName xml ++ ": " ++ content
-          | otherwise  = tagName xml
+          | hasContent = mkKeyword (tagName xml) +++ (mkRegular (": " ++ content))
+          | otherwise  = mkKeyword (tagName xml)
         
         content = concatMap verbatim (filter pcdata (childNodes xml))
         
-        subtree = map xml2tree (filter element (childNodes xml)) ++ map (\(k,v) -> Leaf ('@':k) v) (attributes xml)
+        subtree = map xml2tree (filter element (childNodes xml)) ++ map mkLeaf (attributes xml)
+          where mkLeaf (k,v) = Leaf (mkKeyword2 ('@':k)) (mkRegular v)
 
         hasContent = not (null (filter (not . isSpace) content))
+
+mkRegular :: String -> Doc
+mkRegular = style (Style None None False) . text
+
+mkBold :: String -> Doc
+mkBold = style (Style None None True) . text
+
+mkKeyword :: String -> Doc
+mkKeyword = style (Style Yellow None True) . text
+
+mkKeyword2 :: String -> Doc
+mkKeyword2 = style (Style Yellow None False) . text

@@ -175,6 +175,8 @@ Changelog
   v0.0.8
 
 * Removing bogus .tables() function;
+* Creating .tree() function;
+* New .iyql/cfg entry: tree.colors: [true|false]
 
 ::
 

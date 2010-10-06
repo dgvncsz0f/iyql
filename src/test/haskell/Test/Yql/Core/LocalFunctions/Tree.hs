@@ -30,6 +30,7 @@ module Test.Yql.Core.LocalFunctions.Tree where
 #define eq assertEqual (__FILE__ ++":"++ show __LINE__)
 #define ok assertBool (__FILE__ ++":"++ show __LINE__)
 
+import Yql.Data.PPrint
 import Yql.Core.Types
 import Yql.Core.LocalFunctions.Tree
 import Yql.Core.LocalFunction
@@ -38,7 +39,7 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
-        do eq tree (execTransform [] function xml)
+        do eq tree (execTransform [] (function render) xml)
   where tree = init . unlines $ [ "Results"
                                 , "+- row"
                                 , "|  +- foo: foo"
@@ -61,7 +62,7 @@ test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
                       ]
 
 test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
-        do eq tabular (execTransform [] function xml)
+        do eq tabular (execTransform [] (function render) xml)
   where tabular = init . unlines $ [ "Results"
                                    , "+- row"
                                    , "|  +- foo"
