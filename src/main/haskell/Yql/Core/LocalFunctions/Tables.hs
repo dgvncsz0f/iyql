@@ -28,8 +28,9 @@ module Yql.Core.LocalFunctions.Tables
        ( function
        ) where
 
-import Yql.Core.LocalFunction
+import Yql.Data.PPrint
 import Yql.Data.Xml
+import Yql.Core.LocalFunction
 import Data.List
 import qualified Data.Map as M
 
@@ -42,69 +43,6 @@ data Table = Lines { rows :: [Column] }
 data Cell = Complex Table
           | Scalar String
                deriving (Show)
-
-data Doc = Text String Doc
-         | Line Int Doc
-         | Space Int Doc
-         | Nil
-
-
--- ctext :: Int -> Char -> Doc
--- ctext k = text . replicate k
-
--- stext :: Show a => a -> Doc
--- stext = text . show
-
--- lspace :: Int -> Doc -> Doc
--- lspace by = space by
-
-rspace :: Int -> Doc -> Doc
-rspace by = (<> (space by Nil))
-
-text :: String -> Doc
-text = flip Text Nil
-
-newline :: Doc -> Doc
-newline = Line 0
-
-space :: Int -> Doc -> Doc
-space m (Space n d) = Space (m+n) d
-space m d           = Space m d
-
-nest :: Int -> Doc -> Doc
-nest _ Nil         = Nil
-nest m (Text s d)  = Text s (nest m d)
-nest m (Line n d)  = Line (m+n) (nest m d)
-nest m (Space n d) = Space n (nest m d)
-
-empty :: Doc
-empty = Nil
-
-width :: Doc -> Int
-width = maximum . (0:) . map length . lines . show
-
-cat :: [Doc] -> Doc
-cat []     = empty
-cat [x]    = x
-cat (x:xs) = x <> newline (cat xs)
-
--- columns :: Doc -> Int
--- columns (Text s d)  = length s + (columns d)
--- columns (Space m d) = m + (columns d)
--- columns _           = 0
-
-(<>) :: Doc -> Doc -> Doc
-(Text s d) <> x  = Text s (d <> x)
-(Line n d) <> x  = Line n (d <> x)
-(Space n d) <> x = Space n (d <> x)
-Nil <> x         = x
-infixr 9 <>
-
-render :: Doc -> String
-render Nil         = ""
-render (Space k d) = (replicate k ' ') ++ render d
-render (Line k d)  = "\n" ++ (replicate k ' ') ++ render d
-render (Text s d)  = s ++ render d
 
 function :: Exec
 function = Transform (const doc) (const $ render . xml2doc)
@@ -146,8 +84,7 @@ showTable = cat . map (showTable_ 1) . transpose . map showColumn . rows
 
 xml2doc :: String -> Doc
 xml2doc xml = showTable . xml2table $ results
- where Just doc = xmlParse xml
-
+ where Just doc     = xmlParse xml
        Just results = fmap (childNodes) (findElement "results" doc)
 
 xml2table :: [XML] -> Table
@@ -161,6 +98,3 @@ xml2table = unpack . build . xmlRows
         build = foldr (M.unionWith (++)) M.empty . map (M.fromListWith (++))
 
         unpack = norm . Lines . map Column . M.toList
-
-instance Show Doc where
-  showsPrec _ = showString . render

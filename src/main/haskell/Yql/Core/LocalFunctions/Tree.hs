@@ -24,35 +24,41 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-module Main where
+module Yql.Core.LocalFunctions.Tree
+       ( function
+       ) where
 
-import Test.Framework
-import qualified Test.Yql.Core.Lexer as A
-import qualified Test.Yql.Core.Parser as B
-import qualified Test.Yql.Core.Types as C
-import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.LocalFunctions.Tables as E
-import qualified Test.Yql.Core.LocalFunctions.Request as F
-import qualified Test.Yql.Data.Trie as G
-import qualified Test.Yql.Core.Session as H
-import qualified Test.Yql.Data.Cfg as I
-import qualified Test.Yql.UI.CLI.Commands.Parser as J
-import qualified Test.Yql.UI.CLI.Commands.WhoAmI as K
-import qualified Test.Yql.UI.CLI.Commands.SetEnv as L
-import qualified Test.Yql.Core.LocalFunctions.Tree as M
+import Yql.Data.PPrint
+import Yql.Data.Xml
+import Yql.Core.LocalFunction
+import Data.Char
 
-main :: IO ()
-main = defaultMain $ concat [ A.suite
-                            , B.suite
-                            , C.suite
-                            , D.suite
-                            , E.suite
-                            , F.suite
-                            , G.suite
-                            , H.suite
-                            , I.suite
-                            , J.suite
-                            , K.suite
-                            , L.suite
-                            , M.suite
-                            ]
+data Tree = Branch String [Tree]
+          | Leaf String String
+
+function :: Exec
+function = Transform (const doc) (const $ render . xml2doc)
+  where doc = unlines [ "Reads the xml output and transforms it into a tree-like format"
+                      ]
+
+showTree :: Tree -> Doc
+showTree (Branch k []) = text "+- " <> text k
+showTree (Branch k xs) = text "+- " <> text k <> nestWith (text "|  ") (newline (cat $ map showTree xs))
+showTree (Leaf k v)    = text "+- " <> text k <> text ": " <> text v
+
+xml2doc :: String -> Doc
+xml2doc raw = text "results" <> newline (cat $ (map (showTree . xml2tree) nodes))
+  where Just xml   = xmlParse raw
+        Just nodes = fmap (filter element . childNodes) (findElement "results" xml)
+
+xml2tree :: XML -> Tree
+xml2tree xml = Branch label subtree
+  where label      
+          | hasContent = tagName xml ++ ": " ++ content
+          | otherwise  = tagName xml
+        
+        content = concatMap verbatim (filter pcdata (childNodes xml))
+        
+        subtree = map xml2tree (filter element (childNodes xml)) ++ map (\(k,v) -> Leaf ('@':k) v) (attributes xml)
+
+        hasContent = not (null (filter (not . isSpace) content))

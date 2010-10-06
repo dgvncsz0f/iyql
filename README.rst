@@ -125,15 +125,16 @@ Yql has support for functions. For instance, suppose you want to display the res
 
 :.tables: turns the output into a tabular format;
 
+:.tree: turns the output into tree format;
+
 and its use::
 
-       $ iyql> SELECT * FROM social.profile WHERE guid=me;
-       SELECT guid,nickname FROM social.profile WHERE guid=me | .tables();
+       $ iyql> SELECT guid,nickname FROM social.profile WHERE guid=me | .tables();
        |*guid*                    |*nickname*|
        |6BY52OMEJVITJSBZJCZPB22JZA|dsouza    |
        iyql> SELECT guid,nickname FROM social.profile WHERE guid=me | .json();
        {"query":{"count":"1","created":"2010-08-29T01:34:21Z","lang":"en-US","results":{"profile":{"nickname":"dsouza","guid":"6BY52OMEJVITJSBZJCZPB22JZA"}}}}
-
+       
 Commands
 ~~~~~~~~
 
