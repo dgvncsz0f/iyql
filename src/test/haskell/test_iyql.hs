@@ -31,15 +31,14 @@ import qualified Test.Yql.Core.Lexer as A
 import qualified Test.Yql.Core.Parser as B
 import qualified Test.Yql.Core.Types as C
 import qualified Test.Yql.Core.Backend as D
-import qualified Test.Yql.Core.LocalFunctions.Tables as E
-import qualified Test.Yql.Core.LocalFunctions.Request as F
-import qualified Test.Yql.Data.Trie as G
-import qualified Test.Yql.Core.Session as H
-import qualified Test.Yql.Data.Cfg as I
-import qualified Test.Yql.UI.CLI.Commands.Parser as J
-import qualified Test.Yql.UI.CLI.Commands.WhoAmI as K
-import qualified Test.Yql.UI.CLI.Commands.SetEnv as L
-import qualified Test.Yql.Core.LocalFunctions.Tree as M
+import qualified Test.Yql.Core.LocalFunctions.Request as E
+import qualified Test.Yql.Data.Trie as F
+import qualified Test.Yql.Core.Session as G
+import qualified Test.Yql.Data.Cfg as H
+import qualified Test.Yql.UI.CLI.Commands.Parser as I
+import qualified Test.Yql.UI.CLI.Commands.WhoAmI as J
+import qualified Test.Yql.UI.CLI.Commands.SetEnv as K
+import qualified Test.Yql.Core.LocalFunctions.Tree as L
 
 main :: IO ()
 main = defaultMain $ concat [ A.suite
@@ -54,5 +53,4 @@ main = defaultMain $ concat [ A.suite
                             , J.suite
                             , K.suite
                             , L.suite
-                            , M.suite
                             ]

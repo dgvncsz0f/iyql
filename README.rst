@@ -123,15 +123,22 @@ Yql has support for functions. For instance, suppose you want to display the res
 
 :.endpoint: use a different yql endpoint, one other than \`query.yahooapis.com\' \[``.endpoint(host="query.yahooapis.com", port=80)``\];
 
-:.tables: turns the output into a tabular format;
-
 :.tree: turns the output into tree format;
 
 and its use::
 
-       $ iyql> SELECT guid,nickname FROM social.profile WHERE guid=me | .tables();
-       |*guid*                    |*nickname*|
-       |6BY52OMEJVITJSBZJCZPB22JZA|dsouza    |
+       $ iyql> SELECT * FROM social.profile WHERE guid=me | .tree();
+         +- profile
+         |  +- guid: 6BY52OMEJVITJSBZJCZPB22JZA
+         |  +- image
+         |  |  +- height: 192
+         |  |  +- imageUrl: http://l.yimg.com/us.yimg.com/i/identity/nopic_192.gif
+         |  |  +- size: 192x192
+         |  |  +- width: 192
+         |  +- nickname: dsouza
+         |  +- profileUrl: http://pulse.yahoo.com/_6BY52OMEJVITJSBZJCZPB22JZA
+         |  +- isConnected: false
+         |  +- @xmlns: http://social.yahooapis.com/v1/schema.rng
        iyql> SELECT guid,nickname FROM social.profile WHERE guid=me | .json();
        {"query":{"count":"1","created":"2010-08-29T01:34:21Z","lang":"en-US","results":{"profile":{"nickname":"dsouza","guid":"6BY52OMEJVITJSBZJCZPB22JZA"}}}}
        
@@ -164,6 +171,12 @@ Changelog
 
 ::
 
+  v0.0.8
+
+* Removing bogus .tables() function;
+
+::
+
   v0.0.7
 
 * Updating hoauth library [v0.3.1]
@@ -187,6 +200,6 @@ Changelog
 * Reusing oauth_token
 * Adding iyql commands (e.g. :help)
 * Parser is complete, but where clauses with parenthesis
-* Local functions (e.g. .tables)
+* Local functions (e.g. .tree)
 * History
 

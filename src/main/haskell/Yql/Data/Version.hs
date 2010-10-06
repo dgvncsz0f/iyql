@@ -32,4 +32,4 @@ module Yql.Data.Version
 import Data.Version
 
 version :: Version
-version = Version [0,0,7] ["alpha"]
+version = Version [0,0,8] ["alpha"]

@@ -38,8 +38,7 @@ import Yql.Core.Backend
 import Yql.Core.LocalFunction
 import Yql.Core.Lexer (keywords)
 import qualified Yql.Core.LocalFunctions.Request as F1
-import qualified Yql.Core.LocalFunctions.Tables as F2
-import qualified Yql.Core.LocalFunctions.Tree as F3
+import qualified Yql.Core.LocalFunctions.Tree as F2
 import Yql.Core.Session
 import Yql.Core.Parser
 import Yql.Core.Types
@@ -59,8 +58,7 @@ funcDB = M.fromList [ ("request", F1.function)
                     , ("json", F1.jsonFunction)
                     , ("diagnostics", F1.diagnosticsFunction)
                     , ("endpoint", F1.endpointFunction)
-                    , ("tables", F2.function)
-                    , ("tree", F3.function)
+                    , ("tree", F2.function)
                     ]
         
 
