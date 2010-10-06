@@ -42,8 +42,8 @@ function myRender = Transform (const doc) (const $ myRender . xml2doc)
                       ]
 
 showTree :: Tree Doc -> Doc
-showTree (Branch k xs)  = mkRegular "+- " +++ k +++ nestWith (mkRegular "|  ") (cat $ map showTree xs)
-showTree (Leaf k v)     = mkRegular "+- " +++ k +++ mkRegular ": " +++ v
+showTree (Branch k xs)  = mkRegular "├─ " +++ k +++ nestWith (mkRegular "│  ") (cat $ map showTree xs)
+showTree (Leaf k v)     = mkRegular "├─ " +++ k +++ mkRegular ": " +++ v
 
 xml2doc :: String -> Doc
 xml2doc raw = mkRegular "Results" +++ cat (map (showTree . xml2tree) nodes)
