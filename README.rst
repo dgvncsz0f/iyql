@@ -128,6 +128,7 @@ Yql has support for functions. For instance, suppose you want to display the res
 and its use::
 
        $ iyql> SELECT * FROM social.profile WHERE guid=me | .tree();
+         Results
          +- profile
          |  +- guid: 6BY52OMEJVITJSBZJCZPB22JZA
          |  +- image

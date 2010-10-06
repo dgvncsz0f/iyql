@@ -42,14 +42,14 @@ function = Transform (const doc) (const $ render . xml2doc)
                       ]
 
 showTree :: Tree -> Doc
-showTree (Branch k []) = text "+- " <> text k
-showTree (Branch k xs) = text "+- " <> text k <> nestWith (text "|  ") (newline (cat $ map showTree xs))
-showTree (Leaf k v)    = text "+- " <> text k <> text ": " <> text v
+showTree (Branch k xs)  = text "+- " +++ text k +++ nestWith (text "|  ") (cat $ map showTree xs)
+showTree (Leaf k v)     = text "+- " +++ text k +++ text ": " +++ text v
 
 xml2doc :: String -> Doc
-xml2doc raw = cat (map (showTree . xml2tree) nodes)
-  where Just xml   = xmlParse raw
-        Just nodes = fmap (filter element . childNodes) (findElement "results" xml)
+xml2doc raw = text "Results" +++ cat (map (showTree . xml2tree) nodes)
+  where Just xml     = xmlParse raw
+        Just docRoot = findElement "results" xml
+        nodes        = filter element (childNodes docRoot)
 
 xml2tree :: XML -> Tree
 xml2tree xml = Branch label subtree

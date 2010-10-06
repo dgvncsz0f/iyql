@@ -25,9 +25,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Yql.Data.PPrint
-       ( Doc()
-       , width
-       , rspace
+       ( -- * Types 
+         Doc()
+         -- * Combinators
        , text
        , newline
        , space
@@ -35,8 +35,12 @@ module Yql.Data.PPrint
        , nestWith
        , empty
        , cat
+       , rspace
+       , (+++)
+         -- * Query
+       , width
+         -- * Rendering
        , render
-       , (<>)
        ) where
 
 data Doc = Text String Doc
@@ -53,8 +57,9 @@ data Doc = Text String Doc
 -- lspace :: Int -> Doc -> Doc
 -- lspace by = space by
 
+-- | Add space to the right
 rspace :: Int -> Doc -> Doc
-rspace by = (<> (space by Nil))
+rspace by = (+++ (space by Nil))
 
 text :: String -> Doc
 text = flip Text Nil
@@ -66,40 +71,43 @@ space :: Int -> Doc -> Doc
 space m (Space n d) = Space (m+n) d
 space m d           = Space m d
 
+-- | Left-padding all newlines in the following document
 nest :: Int -> Doc -> Doc
 nest _ Nil         = Nil
 nest m (Text s d)  = Text s (nest m d)
 nest m (Line n d)  = Line (m+n) (nest m d)
 nest m (Space n d) = Space n (nest m d)
 
+-- | Same as nest but uses a given document as the padding
 nestWith :: Doc -> Doc -> Doc
 nestWith _ Nil         = Nil
 nestWith m (Text s d)  = Text s (nestWith m d)
-nestWith m (Line n d)  = Line n (m <> nestWith m d)
+nestWith m (Line n d)  = Line n (m +++ nestWith m d)
 nestWith m (Space n d) = Space n (nestWith m d)
 
+-- | The empty document, which in general is rendered as the null string.
 empty :: Doc
 empty = Nil
 
+-- | Queries all the lines and returns the maximum line.
 width :: Doc -> Int
 width = maximum . (0:) . map length . lines . show
 
+-- | Concatenates a list of documents with newlines.
 cat :: [Doc] -> Doc
-cat []     = empty
-cat [x]    = x
-cat (x:xs) = x <> newline (cat xs)
+cat = foldr ((+++) . newline) empty 
 
 -- columns :: Doc -> Int
 -- columns (Text s d)  = length s + (columns d)
 -- columns (Space m d) = m + (columns d)
 -- columns _           = 0
 
-(<>) :: Doc -> Doc -> Doc
-(Text s d) <> x  = Text s (d <> x)
-(Line n d) <> x  = Line n (d <> x)
-(Space n d) <> x = Space n (d <> x)
-Nil <> x         = x
-infixr 9 <>
+(+++) :: Doc -> Doc -> Doc
+(Text s d) +++ x  = Text s (d +++ x)
+(Line n d) +++ x  = Line n (d +++ x)
+(Space n d) +++ x = Space n (d +++ x)
+Nil +++ x         = x
+infixr 9 +++
 
 render :: Doc -> String
 render Nil         = ""

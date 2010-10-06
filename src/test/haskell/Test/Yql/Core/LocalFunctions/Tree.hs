@@ -39,7 +39,7 @@ import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
         do eq tree (execTransform [] function xml)
-  where tree = init . unlines $ [ "results"
+  where tree = init . unlines $ [ "Results"
                                 , "+- row"
                                 , "|  +- foo: foo"
                                 , "|  +- bar: bar"
@@ -62,7 +62,7 @@ test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
 
 test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
         do eq tabular (execTransform [] function xml)
-  where tabular = init . unlines $ [ "results"
+  where tabular = init . unlines $ [ "Results"
                                    , "+- row"
                                    , "|  +- foo"
                                    , "|  |  +- field_a: field_a"
