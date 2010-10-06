@@ -39,9 +39,9 @@ function :: Exec
 function = Before doc func
   where doc link = unlines [ "Modify the request query string"
                            , "Example:"
-                           , "  SELECT * FROM foobar | " ++ link ++ "(format=\"json\")"
-                           , "  SELECT * FROM foobar | " ++ link ++ "(diagnostics=\"true\")"
-                           , "  SELECT * FROM foobar | " ++ link ++ "(_maxage=3600)"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(format=\"json\")"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(diagnostics=\"true\")"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(_maxage=3600)"
                            ]
         
         func vs r = r { qString = foldr R.insert (qString r) params }
@@ -68,7 +68,7 @@ endpointFunction :: Exec
 endpointFunction = Before doc func
   where doc link = unlines [ "Allow you to change the yql endpoint"
                            , "Examples:"
-                           , " SELECT * FROM foobar | " ++ link ++ "(host=\"query.yahooapis.com\", port=80);"
+                           , " SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(host=\"query.yahooapis.com\", port=80);"
                            ]
         
         func vs r = r { host = newHost (host r)

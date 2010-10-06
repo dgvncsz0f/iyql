@@ -30,6 +30,7 @@ module Yql.Core.LocalFunctions.Tree
 
 import Yql.Data.PPrint
 import Yql.Data.Xml
+import Yql.Core.Types
 import Yql.Core.LocalFunction
 import Data.Char
 
@@ -37,9 +38,17 @@ data Tree a = Branch a  [Tree a]
             | Leaf a a
 
 function :: (Doc -> String) -> Exec
-function myRender = Transform (const doc) (const $ myRender . xml2doc)
-  where doc = unlines [ "Reads the xml output and transforms it into a tree-like format"
-                      ]
+function defRender = Transform doc (select xml2doc)
+  where doc link = unlines [ "Reads the xml output and transforms it into a tree-like format"
+                           , "Example:"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(colors=\"true\");"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "();"
+                           ]
+        select f args = case (lookup "colors" args)
+                        of Nothing -> defRender . f
+                           Just v  -> if (v == TxtValue "true")
+                                      then renderTo Terminal . f
+                                      else renderTo Memory . f
 
 showTree :: Tree Doc -> Doc
 showTree (Branch k xs)  = mkRegular "├─ " +++ k +++ nestWith (mkRegular "│  ") (cat $ map showTree xs)
