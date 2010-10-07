@@ -36,10 +36,14 @@ setenv :: Y.Yql y => y -> Command (Either String y)
 setenv be0 = Command (doc, const exe)
   where doc n  = unlines [ "Modifies the env parameters that are sent to yql"
                          , "Examples:"
-                         , "    :"++n++" +foobar  :: Appends the `foobar' string to the env list"
-                         , "    :"++n++" -foobar  :: Removes the `foobar' string from the env list"
-                         , "    :"++n++" foobar   :: Resets the env, leaving only `foobar' string defined"
-                         , "    :"++n++"          :: Dump the current env list"
+                         , "  :"++n++" +foobar  :: Appends the `foobar' string to the env list"
+                         , "  :"++n++" -foobar  :: Removes the `foobar' string from the env list"
+                         , "  :"++n++" foobar   :: Resets the env, leaving only `foobar' string defined"
+                         , "  :"++n++"          :: Dump the current env list"
+                         , ""
+                         , "Configuration:"
+                         , "  -- defines the env url to send to yql [might be used multiple times]"
+                         , "  env: http://datatables.org/alltables.env"
                          ]
         exe [] = return (Left $ unlines (Y.getenv be0))
         exe es = return (Right $ foldr fold be0 es)

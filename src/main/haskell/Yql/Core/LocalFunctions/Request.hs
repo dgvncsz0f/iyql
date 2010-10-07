@@ -68,7 +68,11 @@ endpointFunction :: Exec
 endpointFunction = Before doc func
   where doc link = unlines [ "Allow you to change the yql endpoint"
                            , "Examples:"
-                           , " SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(host=\"query.yahooapis.com\", port=80);"
+                           , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(host=\"query.yahooapis.com\", port=80);"
+                           , ""
+                           , "Configuration:"
+                           , "  -- define the default endpoint in terms of host:port"
+                           , "  endpoint: query.yahooapis.com:80"
                            ]
         
         func vs r = r { host = newHost (host r)
