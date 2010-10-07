@@ -40,6 +40,7 @@ import Yql.Core.LocalFunction
 import Yql.Core.Lexer (keywords)
 import qualified Yql.Core.LocalFunctions.Request as F1
 import qualified Yql.Core.LocalFunctions.Tree as F2
+import qualified Yql.Core.LocalFunctions.Exec as F3
 import Yql.Core.Session
 import Yql.Core.Parser
 import Yql.Core.Types
@@ -61,6 +62,7 @@ funcDBM = do { colors <- fmap (=="true") (tryUsrCfg "tree.colors" "false")
                                    , ("diagnostics", F1.diagnosticsFunction)
                                    , ("endpoint", F1.endpointFunction)
                                    , ("tree", F2.function (myRender colors))
+                                   , ("exec", F3.function)
                                    ]
              }
   where myRender True  = renderTo Terminal

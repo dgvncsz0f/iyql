@@ -125,6 +125,8 @@ Yql has support for functions. For instance, suppose you want to display the res
 
 :.tree: turns the output into tree format;
 
+:.exec: executes arbitrary programs from your system;
+
 and its use::
 
        $ iyql> SELECT * FROM social.profile WHERE guid=me | .tree();
@@ -142,7 +144,28 @@ and its use::
          |  +- @xmlns: http://social.yahooapis.com/v1/schema.rng
        iyql> SELECT guid,nickname FROM social.profile WHERE guid=me | .json();
        {"query":{"count":"1","created":"2010-08-29T01:34:21Z","lang":"en-US","results":{"profile":{"nickname":"dsouza","guid":"6BY52OMEJVITJSBZJCZPB22JZA"}}}}
-       
+
+With exec, you are able to pipe it to any program that reads from stdin and writes to stdout. For instance, you could use your own xml formatter::
+
+      $ iyql> SELECT * FROM social.profile WHERE guid=me | .exec(file="/usr/bin/xmllint", argv='["--format", "-"]');
+      <?xml version="1.0"?>
+      <query xmlns:yahoo="http://www.yahooapis.com/v1/base.rng" yahoo:count="1" yahoo:created="2010-10-07T23:05:33Z" yahoo:lang="en-US">
+        <results>
+          <profile xmlns="http://social.yahooapis.com/v1/schema.rng">
+            <guid>6BY52OMEJVITJSBZJCZPB22JZA</guid>
+            <image>
+              <height>192</height>
+              <imageUrl>http://l.yimg.com/us.yimg.com/i/identity/nopic_192.gif</imageUrl>
+              <size>192x192</size>
+              <width>192</width>
+            </image>
+            <nickname>dsouza</nickname>
+            <profileUrl>http://pulse.yahoo.com/_6BY52OMEJVITJSBZJCZPB22JZA</profileUrl>
+            <isConnected>false</isConnected>
+          </profile>
+        </results>
+      </query>
+
 Commands
 ~~~~~~~~
 
@@ -172,10 +195,16 @@ Changelog
 
 ::
 
+  v0.0.9
+
+* Creating .exec function;
+
+::
+
   v0.0.8
 
 * Removing bogus .tables() function;
-* Creating .tree() function;
+* Creating .tree function;
 * New .iyql/cfg entry: tree.colors: [true|false]
 
 ::

@@ -62,6 +62,7 @@ man :: Exec -> String -> String
 man (Before doc _)     = doc
 man (After doc _)      = doc
 man (Transform doc _)  = doc
+man (TransformM doc _) = doc
 man _                  = error "man: not found"
 
 -- | Transforms a list of functions into a pipeline using a given linker.
