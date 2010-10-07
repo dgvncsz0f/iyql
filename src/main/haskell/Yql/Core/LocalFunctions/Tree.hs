@@ -36,8 +36,8 @@ import Data.Char
 import Data.Maybe
 import Control.Monad
 
-data Tree a = Branch a  [Tree a]
-            | Leaf a a
+data Tree a = Branch a [Tree a]
+            | Leaf a
 
 function :: (Doc -> String) -> Exec
 function defRender = Transform doc (mkRender xml2doc)
@@ -56,9 +56,9 @@ function defRender = Transform doc (mkRender xml2doc)
                                        then renderTo Terminal . f
                                        else renderTo Memory . f
 
-showTree :: Tree Doc -> Doc
-showTree (Branch k xs)  = mkRegular "├─ " +++ k +++ nestWith (mkRegular "│  ") (cat $ map showTree xs)
-showTree (Leaf k v)     = mkRegular "├─ " +++ k +++ mkRegular ": " +++ v
+showTree :: Tree (Doc,Doc) -> Doc
+showTree (Branch (k,v) xs) = mkRegular "├─ " +++ k +++ mkRegular ": " +++ v +++ nestWith (mkRegular "│  ") (cat $ map showTree xs)
+showTree (Leaf (k,v))      = mkRegular "├─ " +++ k +++ mkRegular ": " +++ v
 
 xml2doc :: String -> Doc
 xml2doc raw = fromJust (liftM f nodes `mplus` Just (mkRegular raw))
@@ -67,21 +67,21 @@ xml2doc raw = fromJust (liftM f nodes `mplus` Just (mkRegular raw))
         nodes   = fmap (filter element . childNodes) docRoot
         f       = (mkRegular "Results" +++) . cat . map (showTree . xml2tree)
 
-xml2tree :: XML -> Tree Doc
+xml2tree :: XML -> Tree (Doc,Doc)
 xml2tree xml = Branch label subtree
   where label      
-          | hasContent = mkKeyword (tagName xml) +++ (mkRegular (": " ++ content))
-          | otherwise  = mkKeyword (tagName xml)
+          | hasContent = (mkKeyword (tagName xml), mkRegular content)
+          | otherwise  = (mkKeyword (tagName xml), empty)
         
         content = concatMap verbatim (filter pcdata (childNodes xml))
         
-        subtree = map xml2tree (filter element (childNodes xml)) ++ map mkLeaf (attributes xml)
-          where mkLeaf (k,v) = Leaf (mkKeyword2 ('@':k)) (mkRegular v)
-
         hasContent = not (null (filter (not . isSpace) content))
+        
+        subtree = map xml2tree (filter element (childNodes xml)) ++ map mkLeaf (attributes xml)
+          where mkLeaf (k,v) = Leaf (mkKeyword2 ('@':k), mkRegular v)
 
 mkRegular :: String -> Doc
-mkRegular = style (Style None None False) . text
+mkRegular = text
 
 mkKeyword :: String -> Doc
 mkKeyword = style (Style Yellow None True) . text

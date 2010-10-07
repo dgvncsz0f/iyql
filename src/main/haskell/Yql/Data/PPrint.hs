@@ -66,9 +66,9 @@ data Device = Memory
             | Terminal
             deriving (Eq)
 
-data Style = Style { fgcolor :: Color
-                   , bgcolor :: Color
-                   , bold    :: Bool
+data Style = Style { fgcolor  :: Color
+                   , bgcolor  :: Color
+                   , fontbold :: Bool
                    }
            | Plain
 
@@ -89,6 +89,10 @@ data Doc = Text (Style,String) Doc
 color :: (Style -> Color) -> Style -> Color
 color _ Plain = None
 color f s = f s
+
+bold :: Style -> Bool
+bold Plain = False
+bold s     = fontbold s
 
 -- | Applies a given style to the document
 style :: Style -> Doc -> Doc
@@ -159,9 +163,9 @@ renderTo dev (Text t d)  = dump t ++ renderTo dev d
           | otherwise       = v
             where termFg   = color2ansi (30+) 39 (color fgcolor s)
                   termBg   = color2ansi (40+) 49 (color bgcolor s)
-                  termBold = if (bold s)
-                             then 1
-                             else 22
+                  termBold 
+                    | bold s    = 1
+                    | otherwise = 22
 
 render :: Doc -> String
 render = renderTo Memory
