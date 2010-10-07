@@ -92,8 +92,19 @@ test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
                       , "</results>"
                       ]
 
+test2 = testCase ".tree() returns raw input when input is not a valid xml" $
+        do eq "foobar" (execTransform [] (function render) "foobar")
+
+test3 = testCase ".tree() returns raw input when input is a valid xml but there is no results element" $
+        do eq xml (execTransform [] (function render) xml)
+  where xml = unlines [ "<?xml version=\"1.0\"?>"
+                      , "<foobar />"
+                      ]
+
 suite :: [Test]
 suite = [ testGroup "Tables.hs" [ test0
                                 , test1
+                                , test2
+                                , test3
                                 ]
         ]

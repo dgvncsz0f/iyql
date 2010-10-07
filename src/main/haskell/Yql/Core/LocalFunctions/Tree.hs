@@ -33,6 +33,8 @@ import Yql.Data.Xml
 import Yql.Core.Types
 import Yql.Core.LocalFunction
 import Data.Char
+import Data.Maybe
+import Control.Monad
 
 data Tree a = Branch a  [Tree a]
             | Leaf a a
@@ -55,10 +57,11 @@ showTree (Branch k xs)  = mkRegular "├─ " +++ k +++ nestWith (mkRegular "│
 showTree (Leaf k v)     = mkRegular "├─ " +++ k +++ mkRegular ": " +++ v
 
 xml2doc :: String -> Doc
-xml2doc raw = mkRegular "Results" +++ cat (map (showTree . xml2tree) nodes)
-  where Just xml     = xmlParse raw
-        Just docRoot = findElement "results" xml
-        nodes        = filter element (childNodes docRoot)
+xml2doc raw = fromJust (liftM f nodes `mplus` Just (mkRegular raw))
+  where xml     = xmlParse raw
+        docRoot = join $ fmap (findElement "results") xml
+        nodes   = fmap (filter element . childNodes) docRoot
+        f       = (mkRegular "Results" +++) . cat . map (showTree . xml2tree)
 
 xml2tree :: XML -> Tree Doc
 xml2tree xml = Branch label subtree
