@@ -43,10 +43,10 @@ test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
            ; eq tree output
            }
   where tree = init . unlines $ [ "Results"
-                                , "├─ row"
+                                , "├─ row: "
                                 , "│  ├─ foo: foo"
                                 , "│  ├─ bar: bar"
-                                , "├─ row"
+                                , "├─ row: "
                                 , "│  ├─ foo: foo"
                                 , "│  ├─ bar: bar"
                                 ]
@@ -68,15 +68,15 @@ test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
            ; eq tree output
            }
   where tree = init . unlines $ [ "Results"
-                                , "├─ row"
-                                , "│  ├─ foo"
+                                , "├─ row: "
+                                , "│  ├─ foo: "
                                 , "│  │  ├─ field_a: field_a"
                                 , "│  │  │  ├─ @attr: attr#0"
                                 , "│  │  ├─ field_b: field_b"
                                 , "│  ├─ bar: bar"
-                                , "├─ row"
+                                , "├─ row: "
                                 , "│  ├─ foo: foo"
-                                , "│  ├─ bar"
+                                , "│  ├─ bar: "
                                 , "│  │  ├─ field_a: field_a"
                                 , "│  │  ├─ field_b: field_b"
                                 , "│  │  │  ├─ @attr: attr#1"
