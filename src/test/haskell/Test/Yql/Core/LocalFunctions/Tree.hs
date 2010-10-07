@@ -39,7 +39,9 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
 test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
-        do eq tree (execTransform [] (function render) xml)
+        do { output <- execTransformM [] (function render) xml
+           ; eq tree output
+           }
   where tree = init . unlines $ [ "Results"
                                 , "├─ row"
                                 , "│  ├─ foo: foo"
@@ -62,22 +64,24 @@ test0 = testCase ".tree() for `simple' results (i.e. rows without attributes)" $
                       ]
 
 test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
-        do eq tabular (execTransform [] (function render) xml)
-  where tabular = init . unlines $ [ "Results"
-                                   , "├─ row"
-                                   , "│  ├─ foo"
-                                   , "│  │  ├─ field_a: field_a"
-                                   , "│  │  │  ├─ @attr: attr#0"
-                                   , "│  │  ├─ field_b: field_b"
-                                   , "│  ├─ bar: bar"
-                                   , "├─ row"
-                                   , "│  ├─ foo: foo"
-                                   , "│  ├─ bar"
-                                   , "│  │  ├─ field_a: field_a"
-                                   , "│  │  ├─ field_b: field_b"
-                                   , "│  │  │  ├─ @attr: attr#1"
-                                   , "│  │  ├─ field_c: field_c"
-                                   ]
+        do { output <- execTransformM [] (function render) xml
+           ; eq tree output
+           }
+  where tree = init . unlines $ [ "Results"
+                                , "├─ row"
+                                , "│  ├─ foo"
+                                , "│  │  ├─ field_a: field_a"
+                                , "│  │  │  ├─ @attr: attr#0"
+                                , "│  │  ├─ field_b: field_b"
+                                , "│  ├─ bar: bar"
+                                , "├─ row"
+                                , "│  ├─ foo: foo"
+                                , "│  ├─ bar"
+                                , "│  │  ├─ field_a: field_a"
+                                , "│  │  ├─ field_b: field_b"
+                                , "│  │  │  ├─ @attr: attr#1"
+                                , "│  │  ├─ field_c: field_c"
+                                ]
 
         xml = unlines [ "<?xml version=\"1.0\"?>"
                       , "<results>"
@@ -93,10 +97,14 @@ test1 = testCase ".tree() for `complex' results (i.e. rows with attributes)" $
                       ]
 
 test2 = testCase ".tree() returns raw input when input is not a valid xml" $
-        do eq "foobar" (execTransform [] (function render) "foobar")
+        do { output <- execTransformM [] (function render) "foobar"
+           ; eq "foobar" output
+           }
 
 test3 = testCase ".tree() returns raw input when input is a valid xml but there is no results element" $
-        do eq xml (execTransform [] (function render) xml)
+        do { output <- execTransformM [] (function render) xml
+           ; eq xml output
+           }
   where xml = unlines [ "<?xml version=\"1.0\"?>"
                       , "<foobar />"
                       ]

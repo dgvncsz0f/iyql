@@ -40,6 +40,12 @@ import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit (assertBool, assertEqual)
 
+eqM aM bM = do { a <- aM
+               ; b <- bM
+               ; eq a b
+               }
+
+
 suite :: [Test]
 suite = [ testGroup "Types.hs" [ test0
                                , test1
@@ -126,11 +132,12 @@ test9 = testCase "show select with local functions" $
            eq "SELECT * FROM iyql WHERE foo = \"bar\" | .iyql() | .iyql(a=1) | .iyql(a=1,b=\"2\");" (show $ SELECT ["*"] "iyql" (Just $ "foo" `OpEq` TxtValue "bar") Nothing Nothing [Local "iyql" [],Local "iyql" [("a",NumValue "1")],Local "iyql" [("a",NumValue "1"),("b",TxtValue "2")]])
 
 test10 = testCase "pipeline [execTransform] is in correct order" $
-         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform_) (pipeline myLinker [Local "foo" [],Local "bar" []]))
-            eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform_) (pipeline myLinker [Local "foobar1" []]))
-            eq (Just $ ("bar"++).(++"foo") $ ">") (fmap (($ ">") . execTransform_) (pipeline myLinker [Local "foobar2" []]))
-            eq (Just $ (++"bar").(++"foo") $ ">") (fmap (($ ">") . execTransform_) (pipeline myLinker [Local "foobar3" []]))
-            eq (Just $ (++"bar").("foo"++) $ ">") (fmap (($ ">") . execTransform_) (pipeline myLinker [Local "foobar4" []]))
+         do { eqM (return $ ("bar"++).("foo"++) $ ">") (join $ fmap (flip execTransformM_ ">") (pipeline myLinker [Local "foo" [],Local "bar" []]))
+            ; eqM (return $ ("bar"++).("foo"++) $ ">") (join $ fmap (flip execTransformM_ ">") (pipeline myLinker [Local "foobar1" []]))
+            ; eqM (return $ ("bar"++).(++"foo") $ ">") (join $ fmap (flip execTransformM_ ">") (pipeline myLinker [Local "foobar2" []]))
+            ; eqM (return $ (++"bar").(++"foo") $ ">") (join $ fmap (flip execTransformM_ ">") (pipeline myLinker [Local "foobar3" []]))
+            ; eqM (return $ (++"bar").("foo"++) $ ">") (join $ fmap (flip execTransformM_ ">") (pipeline myLinker [Local "foobar4" []]))
+            }
   where myLinker = M.fromList [ ("foo", Transform id (const ("foo"++)))
                               , ("bar", Transform id (const ("bar"++)))
                               , ("foobar1", Transform id (const ("foo"++)) `Seq` Transform id (const ("bar"++)))
@@ -144,7 +151,7 @@ test11 = testCase "pipeline generates error when function is not found" $
             ok (isJust $ pipeline M.empty [])
 
 test12 = testCase "ld [transform] is in correct order" $
-         do eq (Just $ ("bar"++).("foo"++) $ ">") (fmap (($ ">") . execTransform_) (ld' myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
+         do eqM (return $ ("bar"++).("foo"++) $ ">") (join $ fmap (flip execTransformM_ ">") (ld' myLinker (SELECT ["*"] "foobar" Nothing Nothing Nothing [Local "foo" [],Local "bar" []])))
   where myLinker = M.fromList [ ("foo", Transform id (const ("foo"++)))
                               , ("bar", Transform id (const ("bar"++)))
                               ]

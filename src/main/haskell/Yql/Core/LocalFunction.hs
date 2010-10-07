@@ -33,10 +33,10 @@ module Yql.Core.LocalFunction
        , ld'
        , execBefore
        , execAfter
-       , execTransform
+       , execTransformM
        , execBefore_
        , execAfter_
-       , execTransform_
+       , execTransformM_
        ) where
 
 import Yql.Core.Types
@@ -53,6 +53,7 @@ newtype Pipeline = Pipeline { runPipeline :: Exec }
 data Exec = Before (String -> String) ([(String,Value)] -> Request -> Request)
           | After (String -> String) ([(String,Value)] -> Response -> Response)
           | Transform (String -> String) ([(String,Value)] -> String -> String)
+          | TransformM (String -> String) ([(String,Value)] -> String -> IO String)
           | Seq Exec Exec
           | NOp
 
@@ -65,30 +66,33 @@ man _                  = error "man: not found"
 
 -- | Transforms a list of functions into a pipeline using a given linker.
 pipeline :: Monad m => Database -> [Function] -> m Pipeline
-pipeline db funcs = do exec <- pipeline' funcs
-                       return (Pipeline exec)
+pipeline db funcs = do { exec <- pipeline' funcs
+                       ; return (Pipeline exec)
+                       }
   where pipeline' []     = return NOp
         pipeline' (f:fs) = case (M.lookup (name f) db)
                            of Nothing -> fail $ "unknown function: " ++ name f
                               Just ex -> liftM (bind (args f) ex `Seq`) (pipeline' fs)
         
-        bind argv (Before d f)    = Before d (const $ f argv)
-        bind argv (After d f)     = After d (const $ f argv)
-        bind argv (Transform d f) = Transform d (const $ f argv)
-        bind _ x                  = x
+        bind argv (Before d f)     = Before d (const $ f argv)
+        bind argv (After d f)      = After d (const $ f argv)
+        bind argv (Transform d f)  = Transform d (const $ f argv)
+        bind argv (TransformM d f) = TransformM d (const $ f argv)
+        bind _ x                   = x
 
 -- | Extracts the local functions from the statement and creates a pipeline.
 ld' :: (Monad m) => Database -> Expression -> m Pipeline
 ld' l stmt = let fs = filter local (functions stmt)
              in pipeline l fs
 
-execTransform :: [(String,Value)] -> Exec -> String -> String
-execTransform argv (Transform _ f) s = f argv s
-execTransform argv (Seq fa fb) s     = execTransform argv fb (execTransform argv fa s)
-execTransform _ _ s                  = s
+execTransformM :: [(String,Value)] -> Exec -> String -> IO String
+execTransformM argv (Transform _ f) s  = return (f argv s)
+execTransformM argv (TransformM _ f) s = f argv s
+execTransformM argv (Seq fa fb) s      = execTransformM argv fa s >>= execTransformM argv fb
+execTransformM _ _ s                   = return s
 
-execTransform_ :: Pipeline -> String -> String
-execTransform_ = execTransform [] . runPipeline
+execTransformM_ :: Pipeline -> String -> IO String
+execTransformM_ = execTransformM [] . runPipeline
 
 execBefore :: [(String,Value)] -> Exec -> Request -> Request
 execBefore argv (Before _ f) r = f argv r

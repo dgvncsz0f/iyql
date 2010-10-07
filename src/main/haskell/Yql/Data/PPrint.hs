@@ -49,8 +49,6 @@ module Yql.Data.PPrint
        , renderTo
        ) where
 
-import Data.Word (Word8)
-import Data.Maybe
 import Text.Printf
 
 data Color = Black
@@ -90,7 +88,7 @@ data Doc = Text (Style,String) Doc
 
 color :: (Style -> Color) -> Style -> Color
 color _ Plain = None
-color f style = f style
+color f s = f s
 
 -- | Applies a given style to the document
 style :: Style -> Doc -> Doc
@@ -152,13 +150,13 @@ Nil +++ x         = x
 infixr 9 +++
 
 renderTo :: Device -> Doc -> String
-renderTo dev Nil         = ""
+renderTo _ Nil           = ""
 renderTo dev (Space k d) = (replicate k ' ') ++ renderTo dev d
 renderTo dev (Line k d)  = "\n" ++ (replicate k ' ') ++ renderTo dev d
-renderTo dev (Text t d)  = print t ++ renderTo dev d
-  where print (s,v)
-          | dev == Memory   = v
+renderTo dev (Text t d)  = dump t ++ renderTo dev d
+  where dump (s,v)
           | dev == Terminal = printf "\x1b[%dm\x1b[%dm\x1b[%dm%s\x1b[0m" (termBold :: Int) termFg termBg v
+          | otherwise       = v
             where termFg   = color2ansi (30+) 39 (color fgcolor s)
                   termBg   = color2ansi (40+) 49 (color bgcolor s)
                   termBold = if (bold s)

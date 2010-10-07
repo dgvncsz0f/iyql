@@ -40,7 +40,7 @@ data Tree a = Branch a  [Tree a]
             | Leaf a a
 
 function :: (Doc -> String) -> Exec
-function defRender = Transform doc (select xml2doc)
+function defRender = Transform doc (mkRender xml2doc)
   where doc link = unlines [ "Reads the xml output and transforms it into a tree-like format"
                            , "Example:"
                            , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(colors=\"true\");"
@@ -50,11 +50,11 @@ function defRender = Transform doc (select xml2doc)
                            , "  -- enable/disable colors when `colors' parameter is not explicitly given"
                            , "  tree.colors: [true|false]"
                            ]
-        select f args = case (lookup "colors" args)
-                        of Nothing -> defRender . f
-                           Just v  -> if (v == TxtValue "true")
-                                      then renderTo Terminal . f
-                                      else renderTo Memory . f
+        mkRender f argv = case (lookup "colors" argv)
+                         of Nothing -> defRender . f
+                            Just v  -> if (v == TxtValue "true")
+                                       then renderTo Terminal . f
+                                       else renderTo Memory . f
 
 showTree :: Tree Doc -> Doc
 showTree (Branch k xs)  = mkRegular "├─ " +++ k +++ nestWith (mkRegular "│  ") (cat $ map showTree xs)
@@ -82,9 +82,6 @@ xml2tree xml = Branch label subtree
 
 mkRegular :: String -> Doc
 mkRegular = style (Style None None False) . text
-
-mkBold :: String -> Doc
-mkBold = style (Style None None True) . text
 
 mkKeyword :: String -> Doc
 mkKeyword = style (Style Yellow None True) . text

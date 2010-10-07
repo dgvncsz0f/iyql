@@ -157,11 +157,11 @@ class Yql y where
   execute :: (MonadIO m) => y -> Database -> Expression -> OutputT m String
   execute y db stmt = do { mkRequest' <- fmap (execBefore_) (ld' db stmt)
                          ; mkResponse <- fmap execAfter_ (ld' db stmt)
-                         ; mkOutput   <- fmap execTransform_ (ld' db stmt)
+                         ; mkOutput   <- return (ld' db stmt >>= execTransformM_)
                          ; tableDesc  <- descTablesIn y (R.find (=="env") . R.qString . mkRequest' $ emptyRequest) stmt
                          ; result     <- lift $ runOAuth handleE token $ do { credentials y (security tableDesc) >> getToken
                                                                             ; url <- signRq2 HMACSHA1 (Just $ Realm "yahooapis.com") (fixRequest $ mkRequest' $ (myRequest tableDesc))
-                                                                            ; serviceRequest CurlClient url >>= return . Right . mkOutput . toString . mkResponse
+                                                                            ; serviceRequest CurlClient url >>= liftIO . fmap Right . mkOutput . toString . mkResponse
                                                                             }
                          ; case result
                            of Right v  -> return v
@@ -169,7 +169,7 @@ class Yql y where
                          }
 
     where myRequest = mkRequest stmt (getenv y)
-          
+
           token = fromApplication (app y)
           
           fixRequest r = r { R.host = fst (endpoint y)
