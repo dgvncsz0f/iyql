@@ -45,6 +45,10 @@ function defRender = Transform doc (select xml2doc)
                            , "Example:"
                            , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "(colors=\"true\");"
                            , "  SELECT * FROM social.profile WHERE guid=me | " ++ link ++ "();"
+                           , ""
+                           , "Configuration:"
+                           , "  -- enable/disable colors when `colors' parameter is not explicitly given"
+                           , "  tree.colors: [true|false]"
                            ]
         select f args = case (lookup "colors" args)
                         of Nothing -> defRender . f
