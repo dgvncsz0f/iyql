@@ -54,7 +54,7 @@ newtype Token = Token { unToken :: (SourcePos,TokenT) }
 
 -- | Performs the lexical analysis of a string and returns the tokens
 -- found.
-scan :: GenParser Char String [Token]
+scan :: GenParser Char st [Token]
 scan = do skipMany space
           t <- readToken
           skipMany space
@@ -63,14 +63,14 @@ scan = do skipMany space
 
 -- | Parses a token created by the lexer so that you can use to
 -- perform syntactic analysis.
-accept :: (TokenT -> Maybe a) -> GenParser Token () a
+accept :: (TokenT -> Maybe a) -> GenParser Token st a
 accept p = token (show.snd.unToken) (fst.unToken) (p.snd.unToken)
 
-mkToken :: TokenT -> GenParser Char String Token
+mkToken :: TokenT -> GenParser Char st Token
 mkToken t = do p <- getPosition
                return (Token (p,t))
 
-symbol :: GenParser Char String Token
+symbol :: GenParser Char st Token
 symbol = (fmap TkKey (try $ string ">=")
          <|> fmap TkKey (try $ string "<=")
          <|> fmap TkKey (try $ string "!=")
@@ -80,7 +80,7 @@ symbol = (fmap TkKey (try $ string ">=")
 
         sym c = (c `notElem` single) && not (isSpace c)
 
-quoted :: GenParser Char String Token
+quoted :: GenParser Char st Token
 quoted = do s       <- oneOf "'\""
             content <- loop s
             mkToken (TkStr content)

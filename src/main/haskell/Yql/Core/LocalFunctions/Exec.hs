@@ -37,7 +37,6 @@ import Control.Monad
 import System.Directory
 import System.IO
 import System.Exit
-import Debug.Trace
 
 exec :: String -> [String] -> String -> IO String
 exec bin argv input = do { proceed <- binaryOk
@@ -88,9 +87,12 @@ function = TransformM doc runExec
                              of Just (TxtValue bin) -> let computation = exec bin arguments input
                                                            handler     = \(SomeException e) -> return (show e)
                                                        in C.catch computation handler
+                                Just _              -> return $ "error: missing file argument"
                                 _                   -> return $ "error: missing file argument"
           where arguments = case (lookup "argv" argv)
                             of Just (TxtValue raw) -> case (reads raw)
                                                       of [(arglist,"")] -> arglist
                                                          _              -> []
+                               Just _              -> []
                                Nothing             -> []
+
