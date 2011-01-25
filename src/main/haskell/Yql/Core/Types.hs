@@ -250,11 +250,16 @@ usingMe stmt = case stmt
         findMe (_ `OpNotLike` v)    = v == MeValue
         findMe (_ `OpMatches` v)    = v == MeValue
         findMe (_ `OpNotMatches` v) = v == MeValue
-        findMe (_ `OpIn` vs)        = any (==MeValue) vs
+        findMe (_ `OpIn` vs)        = any usingMe' vs
         findMe (OpIsNull _)         = False
         findMe (OpIsNotNull _)      = False
         findMe (w0 `OpAnd` w1)      = findMe w0 || findMe w1
         findMe (w0 `OpOr` w1)       = findMe w0 || findMe w1
+
+        usingMe' v = case v
+                     of MeValue     -> True
+                        SubSelect x -> usingMe x
+                        _           -> False
 
 functions :: Expression -> [Function]
 functions (SELECT _ _ _ _ _ f) = f

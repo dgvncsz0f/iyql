@@ -95,6 +95,7 @@ suite = [ testGroup "Types.hs" [ test0
                                , test45
                                , test46
                                , test47
+                               , test48
                                ]
         ]
 
@@ -321,3 +322,10 @@ test46 = testCase "read select with subqueries" $
 
 test47 = testCase "readShowTablesXml reads all tables from xml" $
          do eq (Just ["foo","bar","baz"]) (fmap (readShowTablesXml) (xmlParse "<query><results><table>foo</table><table>bar</table><table>baz</table></results></query>"))
+
+test48 = testCase "usingMe is able to identify me identifiers in simple cases" $
+         do ok (usingMe (SELECT ["*"] "iyql" (Just $ "foo" `OpEq` MeValue) Nothing Nothing []))
+
+test49 = testCase "usingMe is able to identify me identifier in complex cases" $
+         do ok (usingMe (SELECT ["*"] "iyql" (Just $ "foo" `OpIn` [SubSelect $ SELECT ["guid"] "iyql" (Just $ "bar" `OpEq` MeValue) Nothing Nothing []]) Nothing Nothing []))
+
